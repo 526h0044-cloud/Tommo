@@ -1,0 +1,7 @@
+{
+  "name": "Tommo 1.0 — Autonomous Super AI Engine",
+  "description": "Tommo 1.0 is an Autonomous Super AI Engine & Universal Systems Architect engineered for high-density reasoning, production-grade software engineering, and cognitive architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
