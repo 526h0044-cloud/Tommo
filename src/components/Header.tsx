@@ -96,15 +96,6 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </button>
 
-            {/* Security Guardrail Shield Button */}
-            <button
-              onClick={onOpenSecurityModal}
-              className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/50 text-emerald-400 transition-colors font-mono"
-              title="Kiểm thử Giao thức Bảo mật & Chống Jailbreak"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>SHIELD</span>
-            </button>
           </div>
         </div>
 

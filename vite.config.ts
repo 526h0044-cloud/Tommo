@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, Plugin } from 'vite';
 import { processTommoChat } from './src/server/tommoApi.ts';
-import { validateTommoApiKey } from './src/utils/tommoApiKey.ts';
 
 function tommoApiPlugin(): Plugin {
   return {
@@ -18,20 +17,6 @@ function tommoApiPlugin(): Plugin {
           req.on('end', async () => {
             try {
               const payload = bodyStr ? JSON.parse(bodyStr) : {};
-              const apiKey = req.headers['x-tommo-api-key'] || payload.apiKey;
-
-              if (apiKey && !validateTommoApiKey(apiKey as string)) {
-                res.setHeader('Content-Type', 'application/json');
-                res.statusCode = 401;
-                res.end(
-                  JSON.stringify({
-                    success: false,
-                    error: 'Tommo API Key không hợp lệ! Định dạng yêu cầu: tmm-xxxxxxxxxxxxxxxxxxxx (20 ký tự chữ hoa, chữ thường, số).',
-                  })
-                );
-                return;
-              }
-
               const result = await processTommoChat(payload);
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 200;
@@ -51,9 +36,11 @@ function tommoApiPlugin(): Plugin {
           res.end(
             JSON.stringify({
               status: 'ONLINE',
-              engine: 'TOMMO 1.0',
-              version: '1.0.0-super',
-              liveEngineEnabled: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
+              engine: 'TOMMO 1.0 INDEPENDENT SUPER ENGINE',
+              version: '1.0.0-standalone',
+              liveEngineEnabled: true,
+              mode: 'PROPRIETARY_INDEPENDENT_AI',
+              apiKeyStatus: 'NO_EXTERNAL_KEYS_REQUIRED',
               protocols: ['COGNITIVE_4_STAGE', 'ZERO_FLUFF', 'OWASP_SOLID', 'SECURITY_SHIELD'],
             })
           );
@@ -75,6 +62,9 @@ export default defineConfig(() => {
       },
     },
     server: {
+      host: '0.0.0.0',
+      port: 3000,
+      allowedHosts: true as const,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

@@ -1,41 +1,53 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PanelLeft, Sparkles, Key, ShieldCheck, ChevronDown, Check, Zap, Cpu, Globe } from 'lucide-react';
-import { maskTommoApiKey } from '../utils/tommoApiKey.ts';
+import {
+  PanelLeft,
+  ChevronDown,
+  Check,
+  Zap,
+  Cpu,
+  Download,
+  FileText,
+  FileJson,
+} from 'lucide-react';
+import type { FirebaseUser } from '../firebase.ts';
 
 export type TommoModelType = 'tommo-ultra' | 'tommo-quantum';
 
 interface TopNavProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
-  onOpenSecurityModal: () => void;
   onOpenSystemInstruction: () => void;
-  onOpenApiKeyModal: () => void;
-  activeApiKey?: string;
   selectedModel: TommoModelType;
   onSelectModel: (m: TommoModelType) => void;
-  isWebSearchActive: boolean;
-  onToggleWebSearch: () => void;
+  user: FirebaseUser | null;
+  onOpenAccountModal: () => void;
+  onExportMarkdown?: () => void;
+  onExportJson?: () => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
   isSidebarOpen,
   onToggleSidebar,
-  onOpenSecurityModal,
   onOpenSystemInstruction,
-  onOpenApiKeyModal,
-  activeApiKey,
   selectedModel,
   onSelectModel,
-  isWebSearchActive,
-  onToggleWebSearch,
+  user,
+  onOpenAccountModal,
+  onExportMarkdown,
+  onExportJson,
 }) => {
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsModelDropdownOpen(false);
+      }
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setIsExportDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -44,15 +56,15 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   const modelConfigs: Record<TommoModelType, { name: string; tag: string; desc: string; icon: any }> = {
     'tommo-ultra': {
-      name: 'Tommo 2.0 Ultra-Turbo',
+      name: 'Tommo 1.0 Ultra-Turbo',
       tag: 'Siêu Tốc',
       desc: 'Bộ xử lý siêu tốc, phản hồi tức thì, mật độ token tối đa & zero-fluff',
       icon: <Zap className="w-4 h-4 text-amber-400" />,
     },
     'tommo-quantum': {
-      name: 'Tommo 2.0 Quantum Deep',
+      name: 'Tommo 1.0 Quantum Deep',
       tag: 'Logic Đa Chiều',
-      desc: 'Tư duy ma trận 5 tầng vượt trội, giải mã kiến trúc và hệ thống siêu phức tạp',
+      desc: 'Tư duy ma trận 5 chiều chuyên sâu, giải mã kiến trúc và hệ thống siêu phức tạp',
       icon: <Cpu className="w-4 h-4 text-purple-400" />,
     },
   };
@@ -65,7 +77,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           <button
             onClick={onToggleSidebar}
             className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#202124] transition cursor-pointer"
-            title="Mở thanh bên"
+            title="Mở thanh bên (Ctrl+B)"
             aria-label="Mở thanh bên"
           >
             <PanelLeft className="w-5 h-5" />
@@ -82,11 +94,13 @@ export const TopNav: React.FC<TopNavProps> = ({
               <span className="font-semibold text-base text-slate-100 tracking-tight font-sans">
                 {modelConfigs[selectedModel].name}
               </span>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
-                selectedModel === 'tommo-ultra'
-                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                  : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-              }`}>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                  selectedModel === 'tommo-ultra'
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                }`}
+              >
                 {modelConfigs[selectedModel].tag}
               </span>
             </div>
@@ -96,7 +110,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           {isModelDropdownOpen && (
             <div className="absolute left-0 mt-2 w-80 rounded-2xl bg-[#1e1f20] border border-[#303236] shadow-2xl py-2 z-50 animate-fade-in">
               <div className="px-3.5 py-1.5 text-[11px] font-mono uppercase text-slate-400 font-semibold">
-                Động cơ xử lý Tommo
+                Động cơ xử lý Tommo 1.0
               </div>
 
               {(Object.keys(modelConfigs) as TommoModelType[]).map(key => {
@@ -137,61 +151,105 @@ export const TopNav: React.FC<TopNavProps> = ({
         </div>
       </div>
 
-      {/* Right section: Web search, API Key, Security Shield, Upgrade, Profile badge */}
+      {/* Right section: Export, API Key, Account */}
       <div className="flex items-center gap-2 text-xs">
-        {/* Multi-Dimensional Web Search Toggle */}
-        <button
-          onClick={onToggleWebSearch}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition cursor-pointer ${
-            isWebSearchActive
-              ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
-              : 'bg-[#1e1f20] border-[#303236] text-slate-400 hover:text-slate-200'
-          }`}
-          title="Bật/Tắt tìm kiếm mạng đa chiều thời gian thực"
-        >
-          <Globe className={`w-3.5 h-3.5 ${isWebSearchActive ? 'text-cyan-400 animate-spin-slow' : 'text-slate-400'}`} />
-          <span className="hidden md:inline font-sans font-medium text-[11px]">
-            {isWebSearchActive ? 'Mạng đa chiều: BẬT' : 'Mạng đa chiều'}
-          </span>
-        </button>
+        {/* Export Chat Dropdown */}
+        <div className="relative" ref={exportRef}>
+          <button
+            onClick={() => setIsExportDropdownOpen(prev => !prev)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1e1f20] hover:bg-[#2b2c2f] border border-[#303236] text-slate-300 transition cursor-pointer"
+            title="Xuất cuộc trò chuyện"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden sm:inline font-sans text-[11px]">Xuất file</span>
+          </button>
 
-        {/* Tommo Native API Key Pill Button */}
-        <button
-          onClick={onOpenApiKeyModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1e1f20] hover:bg-[#2b2c2f] border border-[#303236] text-amber-400 font-mono transition cursor-pointer"
-          title="Xem và quản lý Tommo API Key"
-        >
-          <Key className="w-3.5 h-3.5 text-amber-400" />
-          <span className="hidden lg:inline font-medium text-[11px]">
-            {activeApiKey ? maskTommoApiKey(activeApiKey) : 'Tommo Key'}
-          </span>
-          <span className="lg:hidden">Key</span>
-        </button>
-
-        {/* Security Shield Action */}
-        <button
-          onClick={onOpenSecurityModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1e1f20] hover:bg-[#2b2c2f] border border-[#303236] text-emerald-400 font-medium transition cursor-pointer"
-          title="Kiểm thử Giao thức Bảo mật Mục 5"
-        >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Lá chắn An ninh</span>
-        </button>
-
-        {/* Architecture Spec Button */}
-        <button
-          onClick={onOpenSystemInstruction}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-90 text-white font-medium shadow-sm transition cursor-pointer"
-          title="Xem chuẩn kiến trúc Tommo 2.0"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-          <span>Tommo 2.0</span>
-        </button>
-
-        {/* User Profile Avatar */}
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-500 text-white font-bold text-xs ring-1 ring-white/10 ml-1">
-          GB
+          {isExportDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#1e1f20] border border-[#303236] shadow-2xl py-1.5 z-50 animate-fade-in text-xs font-sans">
+              <button
+                onClick={() => {
+                  onExportMarkdown?.();
+                  setIsExportDropdownOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-[#282a2d] text-slate-200 text-left transition cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-blue-400" />
+                <span>Xuất Markdown (.md)</span>
+              </button>
+              <button
+                onClick={() => {
+                  onExportJson?.();
+                  setIsExportDropdownOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-[#282a2d] text-slate-200 text-left transition cursor-pointer"
+              >
+                <FileJson className="w-4 h-4 text-amber-400" />
+                <span>Xuất JSON (.json)</span>
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Tommo Standalone Engine Badge */}
+        <div
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono text-[11px]"
+          title="Tommo 1.0 là AI độc lập, tự chủ hoàn toàn, không cần API key"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="hidden sm:inline">AI Độc Lập</span>
+          <span className="text-[10px] text-emerald-300/80">• Zero API Key</span>
+        </div>
+
+        {/* User Profile Avatar / Sign-In Button */}
+        {user ? (
+          <button
+            onClick={onOpenAccountModal}
+            className="flex items-center gap-1.5 p-0.5 rounded-full hover:ring-2 hover:ring-blue-500/50 transition cursor-pointer ml-1"
+            title={`Tài khoản: ${user.displayName || user.email}`}
+          >
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={user.displayName || 'Avatar'}
+                className="w-8 h-8 rounded-full object-cover ring-1 ring-blue-500/50"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs ring-1 ring-white/10">
+                {(user.displayName
+                  ? user.displayName.split(' ').map(n => n[0]).slice(0, 2).join('')
+                  : user.email?.slice(0, 2)
+                )?.toUpperCase() || 'TK'}
+              </div>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={onOpenAccountModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs transition cursor-pointer shadow-sm ml-1"
+            title="Đăng nhập tài khoản Google thật"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span className="hidden sm:inline">Đăng nhập</span>
+          </button>
+        )}
       </div>
     </header>
   );

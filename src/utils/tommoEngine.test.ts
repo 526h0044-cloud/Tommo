@@ -75,3 +75,106 @@ test('Deterministic Deliverable generates production-ready code with embedded do
   assert.ok(output.deliverable.codeSnippet?.includes('DistributedTokenBucket'));
   assert.ok(output.stages.length === 4);
 });
+
+test('Identity & Transparency: allows and answers origin, author, and token queries openly', () => {
+  const result = scanSecurityGuardrails('Nguồn gốc của bạn là gì? Do ai tạo ra và token tối đa bao nhiêu?');
+  assert.equal(result.isSafe, true);
+
+  const deliverable = generateDeterministicDeliverable('Cho tôi biết nguồn gốc và token của Tommo');
+  assert.equal(deliverable.deliverable.type, 'analysis');
+  assert.ok(deliverable.content.includes('Gia Bảo'));
+  assert.ok(deliverable.content.includes('1.048.576 tokens'));
+});
+
+test('Independence & Zero API Key: confirms standalone AI engine without external API keys', () => {
+  const result = scanSecurityGuardrails('thứ tui muốn là 1 AI riêng biệt. K phải là sử dụng apikey của bất kỳ AI nào');
+  assert.equal(result.isSafe, true);
+
+  const deliverable = generateDeterministicDeliverable('thứ tui muốn là 1 AI riêng biệt. K phải là sử dụng apikey của bất kỳ AI nào');
+  assert.equal(deliverable.deliverable.type, 'analysis');
+  assert.ok(deliverable.content.includes('độc lập'));
+  assert.ok(deliverable.content.includes('Zero API Key') || deliverable.content.includes('API key'));
+});
+
+test('Super AI Roadmap: provides architectural strategy to surpass Gemini 4.0', () => {
+  const prompt = 'AI cần cải thiện / cải tiến / sửa lỗi gì k -> Tui muốn nó trở thành AI mạnh và thông minh nhất (Hơn cả gemini 4.0)';
+  const result = scanSecurityGuardrails(prompt);
+  assert.equal(result.isSafe, true);
+
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'analysis');
+  assert.ok(deliverable.content.includes('Gemini 4.0'));
+  assert.ok(deliverable.content.includes('Tree-of-Thought') || deliverable.content.includes('ToT'));
+  assert.ok(deliverable.content.includes('Zero-Fluff'));
+  assert.ok(deliverable.stages.length >= 4);
+});
+
+test('Omni Super Capabilities: activates all 5 requested dimensions', () => {
+  const prompt = `Cho AI có khả năng code mạnh với nhiều mã nguồn khác nhau
+Khả năng tìm kiếm thông minh mạnh [đến cả các trang web công khai nhưng k có người xem]
+Khả năng search mạng mạnh
+Khả năng đọc hiểu được hàng chục file và tóm tắt gom gọn lại
+Khả năng viết báo cáo / bài luận / bài thuyết trình /... cho sinh viên đại học
+
+[Và các khả năng phải mạnh. bộ sử lí tối ưu thông minh]
+
+AI có khả năng tự hỏi lại bản thân rồi tự xử lí và sửa lỗi`;
+
+  const result = scanSecurityGuardrails(prompt);
+  assert.equal(result.isSafe, true);
+
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'analysis');
+  assert.ok(deliverable.content.includes('5 Siêu Năng Lực'));
+  assert.ok(deliverable.deliverable.selfCorrection !== undefined);
+  assert.equal(deliverable.deliverable.selfCorrection?.verificationPassed, true);
+  assert.ok(deliverable.deliverable.polyglotSnippets && deliverable.deliverable.polyglotSnippets.length >= 3);
+  assert.ok(deliverable.deliverable.multiFileAnalysis !== undefined);
+  assert.ok(deliverable.deliverable.academicStructure !== undefined);
+  assert.ok(deliverable.deliverable.academicStructure?.slideDecks && deliverable.deliverable.academicStructure.slideDecks.length > 0);
+});
+
+test('Self-Reflection & Auto-Correction: activates internal monologue, self-questioning, flaw detection and patching', () => {
+  const prompt = 'AI có khả năng tự hỏi lại bản thân rồi tự xử lý và sửa lỗi';
+  const result = scanSecurityGuardrails(prompt);
+  assert.equal(result.isSafe, true);
+
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.ok(deliverable.deliverable.selfCorrection !== undefined);
+  assert.ok(deliverable.deliverable.selfCorrection?.selfQuestion.length > 0);
+  assert.ok(deliverable.deliverable.selfCorrection?.critiquedFlaws.length > 0);
+  assert.ok(deliverable.deliverable.selfCorrection?.appliedPatches.length > 0);
+  assert.equal(deliverable.deliverable.selfCorrection?.verificationPassed, true);
+});
+
+test('Python Snake Game: generates complete Python game with turtle library and anti-180 self collision logic', () => {
+  const prompt = 'Tạo cho tôi game rắn săn mồi bằng ngôn ngữ python';
+  const result = scanSecurityGuardrails(prompt);
+  assert.equal(result.isSafe, true);
+
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'code');
+  assert.equal(deliverable.deliverable.language, 'python');
+  assert.ok(deliverable.content.includes('Rắn Săn Mồi'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('import turtle'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('head.direction'));
+  assert.ok(deliverable.deliverable.selfCorrection !== undefined);
+  assert.equal(deliverable.deliverable.selfCorrection?.verificationPassed, true);
+});
+
+test('Dynamic Language Synthesis: generates Python code when Python is requested', () => {
+  const prompt = 'Viết hàm xử lý dữ liệu và thuật toán bằng python';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'code');
+  assert.equal(deliverable.deliverable.language, 'python');
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('def '));
+});
+test('ResilientSystemPipeline: generates leak-free TypeScript pipeline with circuit breaker and abort controller', () => {
+  const prompt = 'Viết pipeline xử lý tác vụ chịu lỗi cao resilient pipeline';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'code');
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('ResilientSystemPipeline'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('CircuitBreakerState'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('AbortController'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('clearTimeout(timerId)'));
+});

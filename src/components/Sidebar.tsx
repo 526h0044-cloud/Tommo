@@ -1,28 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Plus,
   MessageSquare,
   Sparkles,
-  ShieldCheck,
-  Zap,
   BookOpen,
   PanelLeftClose,
   PanelLeft,
   Settings,
   Trash2,
-  Cpu,
+  Pin,
+  PinOff,
+  Edit2,
+  Check,
   Search,
-  ExternalLink,
-  Key
+  Zap,
 } from 'lucide-react';
-import { DomainMode } from '../types/tommo.ts';
-
-export interface ChatSession {
-  id: string;
-  title: string;
-  timestamp: string;
-  domain: DomainMode;
-}
+import { DomainMode, ChatSession } from '../types/tommo.ts';
+import type { FirebaseUser } from '../firebase.ts';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -32,10 +26,12 @@ interface SidebarProps {
   onSelectSession: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string, e: React.MouseEvent) => void;
-  onOpenSecurityModal: () => void;
+  onTogglePinSession: (id: string, e: React.MouseEvent) => void;
+  onRenameSession: (id: string, newTitle: string) => void;
   onOpenSystemInstruction: () => void;
-  onOpenApiKeyModal: () => void;
   totalFluffSaved: number;
+  user: FirebaseUser | null;
+  onOpenAccountModal: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -46,11 +42,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectSession,
   onNewChat,
   onDeleteSession,
-  onOpenSecurityModal,
+  onTogglePinSession,
+  onRenameSession,
   onOpenSystemInstruction,
-  onOpenApiKeyModal,
   totalFluffSaved,
+  user,
+  onOpenAccountModal,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+
+  const userInitials = user?.displayName
+    ? user.displayName
+        .split(' ')
+        .map(n => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : null;
+
+  const startRename = (session: ChatSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title);
+  };
+
+  const saveRename = (sessionId: string, e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (editingTitle.trim()) {
+      onRenameSession(sessionId, editingTitle.trim());
+    }
+    setEditingSessionId(null);
+  };
+
+  // Sort: pinned first, then by date/order
+  const filteredSessions = sessions.filter(s =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  const pinnedSessions = filteredSessions.filter(s => s.pinned);
+  const unpinnedSessions = filteredSessions.filter(s => !s.pinned);
+  const sortedSessions = [...pinnedSessions, ...unpinnedSessions];
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -70,7 +106,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Top Header */}
         <div className="flex items-center justify-between h-14 px-3.5 border-b border-[#26282b]/60">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            {/* Tommo 4-color diamond/sparkle icon */}
             <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 via-cyan-400 to-indigo-500 text-white shrink-0 shadow-sm">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
@@ -81,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   Tommo
                 </span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-500/15 text-blue-400 font-mono font-medium border border-blue-500/20">
-                  1.0 Super
+                  1.0
                 </span>
               </div>
             )}
@@ -89,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             onClick={onToggle}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#282a2d] transition"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#282a2d] transition cursor-pointer"
             title={isOpen ? 'Thu gọn thanh bên' : 'Mở rộng thanh bên'}
             aria-label={isOpen ? 'Thu gọn thanh bên' : 'Mở rộng thanh bên'}
           >
@@ -101,86 +136,145 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-3">
           <button
             onClick={onNewChat}
-            className={`flex items-center gap-2.5 w-full rounded-full transition-all duration-150 ${
+            className={`flex items-center gap-2.5 w-full rounded-full transition-all duration-150 cursor-pointer ${
               isOpen
                 ? 'px-4 py-2.5 bg-[#202124] hover:bg-[#282a2e] text-slate-200 hover:text-white text-xs font-medium border border-[#303236]'
                 : 'p-2.5 justify-center bg-[#202124] text-slate-200 hover:text-white'
             }`}
-            title="Đoạn chat mới"
+            title="Đoạn chat mới (Ctrl+Shift+O)"
           >
             <Plus className="w-4 h-4 text-blue-400" />
-            {isOpen && <span className="font-sans font-medium text-xs">Cuộc trò chuyện mới</span>}
+            {isOpen && (
+              <div className="flex items-center justify-between flex-1">
+                <span className="font-sans font-medium text-xs">Cuộc trò chuyện mới</span>
+                <span className="text-[10px] text-slate-500 font-mono hidden xl:inline">⌘⇧O</span>
+              </div>
+            )}
           </button>
         </div>
 
-        {/* Main Nav / Navigation Links */}
+        {/* Quick Search in Sessions (when open) */}
+        {isOpen && (
+          <div className="px-3 pb-2">
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Tìm đoạn chat... (Ctrl+K)"
+                className="w-full bg-[#1e1f20] border border-[#2b2c2f] rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Links */}
         <div className="px-2 space-y-1">
           <button
-            onClick={onOpenSecurityModal}
-            className={`flex items-center gap-3 w-full rounded-lg px-2.5 py-2 text-xs text-slate-300 hover:bg-[#282a2d] hover:text-white transition ${
-              !isOpen && 'justify-center px-0'
-            }`}
-            title="Giao thức Bảo mật & Chống Jailbreak Mục 5"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            {isOpen && <span className="truncate">Lá chắn Bảo mật (Mục 5)</span>}
-          </button>
-
-          <button
             onClick={onOpenSystemInstruction}
-            className={`flex items-center gap-3 w-full rounded-lg px-2.5 py-2 text-xs text-slate-300 hover:bg-[#282a2d] hover:text-white transition ${
+            className={`flex items-center gap-3 w-full rounded-lg px-2.5 py-2 text-xs text-slate-300 hover:bg-[#282a2d] hover:text-white transition cursor-pointer ${
               !isOpen && 'justify-center px-0'
             }`}
-            title="Xem chỉ thị kiến trúc Tommo 1.0"
+            title="Xem chỉ thị kiến trúc & nguồn gốc Tommo 1.0"
           >
             <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
-            {isOpen && <span className="truncate">Chỉ thị Tommo 1.0</span>}
-          </button>
-
-          <button
-            onClick={onOpenApiKeyModal}
-            className={`flex items-center gap-3 w-full rounded-lg px-2.5 py-2 text-xs text-slate-300 hover:bg-[#282a2d] hover:text-white transition ${
-              !isOpen && 'justify-center px-0'
-            }`}
-            title="Quản lý Tommo API Key (tmm-xxxxxxxxxxxxxxxxxxxx)"
-          >
-            <Key className="w-4 h-4 text-amber-400 shrink-0" />
-            {isOpen && <span className="truncate">Tommo API Key</span>}
+            {isOpen && <span className="truncate">Chỉ thị & Nguồn gốc Tommo</span>}
           </button>
         </div>
 
         {/* Recent Chats Section */}
         {isOpen && (
-          <div className="flex-1 overflow-y-auto px-2 mt-4 space-y-1">
-            <div className="px-2.5 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-              Gần đây
+          <div className="flex-1 overflow-y-auto px-2 mt-3 space-y-1">
+            <div className="px-2.5 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Đoạn chat</span>
+              <span className="text-[10px] text-slate-500 font-mono">{sessions.length}</span>
             </div>
 
-            {sessions.map(session => (
-              <div
-                key={session.id}
-                onClick={() => onSelectSession(session.id)}
-                className={`group flex items-center justify-between w-full px-2.5 py-2 rounded-lg text-xs font-sans cursor-pointer transition ${
-                  activeSessionId === session.id
-                    ? 'bg-[#282a2d] text-white font-medium'
-                    : 'text-slate-400 hover:bg-[#222427] hover:text-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2 overflow-hidden mr-2">
-                  <MessageSquare className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-blue-400" />
-                  <span className="truncate">{session.title}</span>
+            {sortedSessions.map(session => {
+              const isActive = activeSessionId === session.id;
+              const isEditing = editingSessionId === session.id;
+
+              return (
+                <div
+                  key={session.id}
+                  onClick={() => onSelectSession(session.id)}
+                  className={`group flex items-center justify-between w-full px-2.5 py-2 rounded-lg text-xs font-sans cursor-pointer transition ${
+                    isActive
+                      ? 'bg-[#282a2d] text-white font-medium'
+                      : 'text-slate-400 hover:bg-[#222427] hover:text-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden mr-1.5 flex-1">
+                    {session.pinned ? (
+                      <Pin className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                    ) : (
+                      <MessageSquare className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-blue-400" />
+                    )}
+
+                    {isEditing ? (
+                      <form
+                        onSubmit={e => saveRename(session.id, e)}
+                        onClick={e => e.stopPropagation()}
+                        className="flex-1 flex items-center gap-1"
+                      >
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editingTitle}
+                          onChange={e => setEditingTitle(e.target.value)}
+                          onBlur={() => saveRename(session.id)}
+                          className="w-full bg-[#141517] border border-blue-500 rounded px-1.5 py-0.5 text-xs text-white focus:outline-none"
+                        />
+                        <button
+                          type="submit"
+                          className="p-1 text-emerald-400 hover:text-emerald-300"
+                        >
+                          <Check className="w-3 h-3" />
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="truncate">{session.title}</span>
+                    )}
+                  </div>
+
+                  {!isEditing && (
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition shrink-0">
+                      {/* Pin button */}
+                      <button
+                        onClick={e => onTogglePinSession(session.id, e)}
+                        className={`p-1 rounded hover:bg-[#34363a] transition ${
+                          session.pinned ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+                        }`}
+                        title={session.pinned ? 'Bỏ ghim' : 'Ghim lên đầu'}
+                      >
+                        {session.pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+                      </button>
+
+                      {/* Rename button */}
+                      <button
+                        onClick={e => startRename(session, e)}
+                        className="p-1 rounded text-slate-400 hover:text-white hover:bg-[#34363a] transition"
+                        title="Đổi tên"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+
+                      {/* Delete button */}
+                      {sessions.length > 1 && (
+                        <button
+                          onClick={e => onDeleteSession(session.id, e)}
+                          className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-[#34363a] transition"
+                          title="Xóa đoạn chat"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {sessions.length > 1 && (
-                  <button
-                    onClick={e => onDeleteSession(session.id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-400 transition"
-                    title="Xóa đoạn chat"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -197,39 +291,77 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {/* Bottom Profile Bar */}
-        <div className="p-3 border-t border-[#26282b] bg-[#141517]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-500 text-white font-bold text-xs shrink-0 shadow-sm">
-                GB
-                <span className="absolute -bottom-0.5 -right-0.5 px-1 py-0.2 rounded-full bg-blue-600 text-[8px] font-mono font-bold">
-                  PRO
-                </span>
+        {/* Bottom Profile Bar - Real User Account */}
+        <div className="p-2.5 border-t border-[#26282b] bg-[#141517]">
+          {user ? (
+            <div
+              onClick={onOpenAccountModal}
+              className="flex items-center justify-between p-1.5 rounded-xl hover:bg-[#202124] transition cursor-pointer group"
+              title="Quản lý tài khoản"
+            >
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="relative shrink-0">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || 'Avatar'}
+                      className="w-8 h-8 rounded-full ring-1 ring-blue-500/40 object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs ring-1 ring-white/10">
+                      {userInitials || 'TK'}
+                    </div>
+                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 px-1 py-0.2 rounded-full bg-emerald-600 text-[8px] font-mono font-bold text-white">
+                    LIVE
+                  </span>
+                </div>
+
+                {isOpen && (
+                  <div className="overflow-hidden text-left">
+                    <div className="text-xs font-medium text-slate-200 truncate group-hover:text-white transition">
+                      {user.displayName || user.email?.split('@')[0] || 'Tài khoản Google'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono truncate">
+                      {user.email || 'Tommo Pro'}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {isOpen && (
-                <div className="overflow-hidden">
-                  <div className="text-xs font-medium text-slate-200 truncate">
-                    Gia Bảo L8035 Lý Hoàng
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono truncate">
-                    Tommo Pro Plan
-                  </div>
-                </div>
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    onOpenAccountModal();
+                  }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#282a2d] transition"
+                  title="Cài đặt tài khoản"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
               )}
             </div>
-
-            {isOpen && (
-              <button
-                onClick={onOpenSystemInstruction}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#282a2d] transition"
-                title="Cài đặt hệ thống"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+          ) : (
+            <button
+              onClick={onOpenAccountModal}
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl bg-[#202124] hover:bg-[#2b2d31] border border-[#303236] text-slate-200 transition cursor-pointer ${
+                !isOpen && 'justify-center p-2'
+              }`}
+              title="Đăng nhập tài khoản Google"
+            >
+              <div className="w-7 h-7 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              {isOpen && (
+                <div className="overflow-hidden text-left flex-1">
+                  <div className="text-xs font-semibold text-white">Đăng nhập tài khoản</div>
+                  <div className="text-[10px] text-slate-400">Đồng bộ đám mây Firestore</div>
+                </div>
+              )}
+            </button>
+          )}
         </div>
       </aside>
     </>

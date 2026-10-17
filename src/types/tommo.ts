@@ -1,4 +1,12 @@
-export type DomainMode = 'software' | 'architecture' | 'security' | 'science' | 'general';
+export type DomainMode =
+  | 'software'
+  | 'architecture'
+  | 'security'
+  | 'science'
+  | 'academic'
+  | 'deep_search'
+  | 'multifile'
+  | 'general';
 
 export type ProcessorEngineMode = 'ultra_turbo' | 'quantum_deep';
 
@@ -6,15 +14,67 @@ export interface WebGroundingSource {
   title: string;
   url: string;
   domain: string;
+  isLongTail?: boolean;
+  category?: string;
 }
 
 export interface WebGroundingData {
   queries: string[];
   sources: WebGroundingSource[];
+  deepWebCoverage?: string;
+}
+
+export interface SelfCorrectionLog {
+  selfQuestion: string; // Câu hỏi tự chất vấn bản thân
+  initialHypothesis: string; // Giả thuyết ban đầu
+  critiquedFlaws: string[]; // Điểm yếu / lỗi logic được phát hiện
+  appliedPatches: string[]; // Các bản vá / sửa lỗi đã thi hành
+  verificationPassed: boolean; // Đạt 100% kiểm thử
+}
+
+export interface MultiFileSummaryItem {
+  name: string;
+  type: string;
+  size: string;
+  role: string;
+  keyPoints: string;
+}
+
+export interface MultiFileAnalysis {
+  totalFiles: number;
+  totalSize: string;
+  summary: string;
+  fileMatrix: MultiFileSummaryItem[];
+  crossDependencies: string[];
+  finalSynthesis: string;
+}
+
+export interface PolyglotSnippet {
+  language: string;
+  filename: string;
+  code: string;
+  testCode?: string;
+  notes: string;
+}
+
+export interface AcademicSlide {
+  slideNumber: number;
+  title: string;
+  bullets: string[];
+  speakerNotes: string;
+}
+
+export interface AcademicStructure {
+  paperType: 'thesis' | 'essay' | 'lab_report' | 'presentation';
+  title: string;
+  abstract: string;
+  sections: Array<{ heading: string; content: string }>;
+  slideDecks?: AcademicSlide[];
+  citations: string[];
 }
 
 export interface CognitiveStage {
-  id: 'intent' | 'boundary' | 'simulation' | 'web_grounding' | 'synthesis';
+  id: 'intent' | 'boundary' | 'simulation' | 'web_grounding' | 'self_reflection' | 'synthesis';
   title: string;
   vietnameseTitle: string;
   summary: string;
@@ -43,6 +103,14 @@ export interface SecurityScanResult {
   explanation?: string;
 }
 
+export interface ChatSession {
+  id: string;
+  title: string;
+  timestamp: string;
+  domain: DomainMode;
+  pinned?: boolean;
+}
+
 export interface TommoMessage {
   id: string;
   role: 'user' | 'tommo';
@@ -55,11 +123,16 @@ export interface TommoMessage {
   webGrounding?: WebGroundingData;
   processorMode?: ProcessorEngineMode;
   deliverable?: {
-    type: 'code' | 'architecture' | 'analysis' | 'refusal';
+    type: 'code' | 'architecture' | 'analysis' | 'academic' | 'deep_search' | 'multifile_summary' | 'refusal';
     language?: string;
     codeSnippet?: string;
     explanation?: string;
     usageGuide?: string;
     clarificationQuestion?: string;
+    selfCorrection?: SelfCorrectionLog;
+    multiFileAnalysis?: MultiFileAnalysis;
+    academicStructure?: AcademicStructure;
+    polyglotSnippets?: PolyglotSnippet[];
   };
 }
+

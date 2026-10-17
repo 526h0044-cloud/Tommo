@@ -1,46 +1,48 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sidebar, ChatSession } from './components/Sidebar.tsx';
+import { Sidebar } from './components/Sidebar.tsx';
 import { TopNav, TommoModelType } from './components/TopNav.tsx';
 import { Hero } from './components/Hero.tsx';
 import { ChatMessage } from './components/ChatMessage.tsx';
 import { InputBar } from './components/InputBar.tsx';
-import { SecurityGuardrailModal } from './components/SecurityGuardrailModal.tsx';
 import { SystemInstructionModal } from './components/SystemInstructionModal.tsx';
-import { ApiKeyModal } from './components/ApiKeyModal.tsx';
-import { DomainMode, TommoMessage } from './types/tommo.ts';
-import { generateTommoApiKey, validateTommoApiKey } from './utils/tommoApiKey.ts';
+import { AccountModal } from './components/AccountModal.tsx';
+import { DomainMode, TommoMessage, ChatSession } from './types/tommo.ts';
+import {
+  auth,
+  db,
+  handleFirestoreError,
+  OperationType,
+  type FirebaseUser,
+} from './firebase.ts';
+import { onAuthStateChanged } from 'firebase/auth';
+import {
+  doc,
+  setDoc,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+} from 'firebase/firestore';
 
-const STORAGE_KEY_SESSIONS = 'tommo_real_sessions_v3';
-const STORAGE_KEY_MESSAGES = 'tommo_real_messages_v3';
-const STORAGE_KEY_FLUFF = 'tommo_real_fluff_v3';
-const STORAGE_KEY_API_KEY = 'tommo_api_key_v1';
+const STORAGE_KEY_SESSIONS = 'tommo_real_sessions_v5';
+const STORAGE_KEY_MESSAGES = 'tommo_real_messages_v5';
+const STORAGE_KEY_FLUFF = 'tommo_real_fluff_v5';
 
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedModel, setSelectedModel] = useState<TommoModelType>('tommo-ultra');
-  const [isWebSearchActive, setIsWebSearchActive] = useState<boolean>(true);
   const [currentDomain, setCurrentDomain] = useState<DomainMode>('architecture');
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isSystemInstructionOpen, setIsSystemInstructionOpen] = useState(false);
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Active Tommo API Key (tmm-xxxxxxxxxxxxxxxxxxxx)
-  const [tommoApiKey, setTommoApiKey] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_API_KEY);
-      if (saved && validateTommoApiKey(saved)) return saved;
-    } catch {}
-    const initialKey = generateTommoApiKey();
-    try {
-      localStorage.setItem(STORAGE_KEY_API_KEY, initialKey);
-    } catch {}
-    return initialKey;
-  });
+  // Real Firebase User State (Live Google Auth)
+  const [user, setUser] = useState<FirebaseUser | null>(null);
 
-  // Load real sessions from localStorage
+  // Sessions state (supports LocalStorage fallback + Cloud Firestore sync)
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SESSIONS);
@@ -52,6 +54,7 @@ export default function App() {
         title: 'Cuộc trò chuyện mới',
         timestamp: 'Vừa xong',
         domain: 'architecture',
+        pinned: false,
       },
     ];
   });
@@ -60,7 +63,7 @@ export default function App() {
     return sessions[0]?.id || 'session-main';
   });
 
-  // Load real messages from localStorage
+  // Messages state
   const [messagesBySession, setMessagesBySession] = useState<Record<string, TommoMessage[]>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_MESSAGES);
@@ -71,7 +74,7 @@ export default function App() {
     };
   });
 
-  // Real Fluff tokens saved counter
+  // Fluff tokens saved counter
   const [totalFluffSaved, setTotalFluffSaved] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_FLUFF);
@@ -82,15 +85,142 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Sync state to localStorage
+  // 1. Listen for Real Firebase Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async currentUser => {
+      setUser(currentUser);
+
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          await setDoc(
+            userDocRef,
+            {
+              id: currentUser.uid,
+              email: currentUser.email || '',
+              displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+              photoURL: currentUser.photoURL || '',
+              role: 'pro',
+              plan: 'Tommo Pro',
+              lastLoginAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}`);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Listen for Real Firestore Sessions when authenticated
+  useEffect(() => {
+    if (!user) return;
+
+    const path = `users/${user.uid}/sessions`;
+    try {
+      const sessionsRef = collection(db, 'users', user.uid, 'sessions');
+      const q = query(sessionsRef, orderBy('updatedAt', 'desc'));
+
+      const unsubscribe = onSnapshot(
+        q,
+        snapshot => {
+          const firestoreSessions: ChatSession[] = [];
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            firestoreSessions.push({
+              id: docSnap.id,
+              title: data.title || 'Cuộc trò chuyện mới',
+              timestamp: data.updatedAt
+                ? new Date(data.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'Vừa xong',
+              domain: data.domain || 'architecture',
+              pinned: Boolean(data.pinned),
+            });
+          });
+
+          if (firestoreSessions.length > 0) {
+            setSessions(firestoreSessions);
+            if (!firestoreSessions.some(s => s.id === activeSessionId)) {
+              setActiveSessionId(firestoreSessions[0].id);
+            }
+          }
+        },
+        error => {
+          handleFirestoreError(error, OperationType.LIST, path);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, path);
+    }
+  }, [user]);
+
+  // 3. Listen for Real Firestore Messages for active session
+  useEffect(() => {
+    if (!user || !activeSessionId) return;
+
+    const path = `users/${user.uid}/sessions/${activeSessionId}/messages`;
+    try {
+      const messagesRef = collection(db, 'users', user.uid, 'sessions', activeSessionId, 'messages');
+      const q = query(messagesRef, orderBy('timestampRaw', 'asc'));
+
+      const unsubscribe = onSnapshot(
+        q,
+        snapshot => {
+          const firestoreMsgs: TommoMessage[] = [];
+          snapshot.forEach(docSnap => {
+            firestoreMsgs.push(docSnap.data() as TommoMessage);
+          });
+
+          if (firestoreMsgs.length > 0) {
+            setMessagesBySession(prev => ({
+              ...prev,
+              [activeSessionId]: firestoreMsgs,
+            }));
+          }
+        },
+        error => {
+          handleFirestoreError(error, OperationType.LIST, path);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, path);
+    }
+  }, [user, activeSessionId]);
+
+  // Sync state to localStorage for offline / guest resilience
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(sessions));
       localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messagesBySession));
       localStorage.setItem(STORAGE_KEY_FLUFF, totalFluffSaved.toString());
-      localStorage.setItem(STORAGE_KEY_API_KEY, tommoApiKey);
     } catch {}
-  }, [sessions, messagesBySession, totalFluffSaved, tommoApiKey]);
+  }, [sessions, messagesBySession, totalFluffSaved]);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Shift+O or Cmd+Shift+O -> New chat
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'O' || e.key === 'o')) {
+        e.preventDefault();
+        handleNewChat();
+      }
+      // Esc -> Close modals
+      if (e.key === 'Escape') {
+        setIsSystemInstructionOpen(false);
+        setIsAccountModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const activeMessages = messagesBySession[activeSessionId] || [];
 
@@ -98,11 +228,93 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleUpdateApiKey = (newKey: string) => {
-    setTommoApiKey(newKey);
-    try {
-      localStorage.setItem(STORAGE_KEY_API_KEY, newKey);
-    } catch {}
+  // Toggle Pin on Session
+  const handleTogglePinSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const sessionToToggle = sessions.find(s => s.id === sessionId);
+    const newPinned = !sessionToToggle?.pinned;
+
+    setSessions(prev =>
+      prev.map(s => (s.id === sessionId ? { ...s, pinned: newPinned } : s))
+    );
+
+    if (user) {
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'sessions', sessionId),
+          { pinned: newPinned, updatedAt: new Date().toISOString() },
+          { merge: true }
+        );
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/sessions/${sessionId}`);
+      }
+    }
+  };
+
+  // Rename Session
+  const handleRenameSession = async (sessionId: string, newTitle: string) => {
+    setSessions(prev =>
+      prev.map(s => (s.id === sessionId ? { ...s, title: newTitle } : s))
+    );
+
+    if (user) {
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'sessions', sessionId),
+          { title: newTitle, updatedAt: new Date().toISOString() },
+          { merge: true }
+        );
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/sessions/${sessionId}`);
+      }
+    }
+  };
+
+  // Export Chat to Markdown
+  const handleExportMarkdown = () => {
+    const session = sessions.find(s => s.id === activeSessionId);
+    const title = session?.title || 'Tommo_1.0_Chat';
+    let md = `# ${title}\n*Thời gian: ${new Date().toLocaleString('vi-VN')}*\n*Động cơ: Tommo 1.0 Super Engine*\n\n---\n\n`;
+
+    activeMessages.forEach((msg, idx) => {
+      const sender = msg.role === 'user' ? '👤 Người dùng' : '🤖 Tommo 1.0';
+      md += `### ${sender} (${msg.timestamp})\n\n${msg.content}\n\n---\n\n`;
+    });
+
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_')}_${Date.now()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export Chat to JSON
+  const handleExportJson = () => {
+    const session = sessions.find(s => s.id === activeSessionId);
+    const title = session?.title || 'Tommo_1.0_Chat';
+    const exportData = {
+      app: 'Tommo 1.0 Autonomous Super AI Engine',
+      sessionId: activeSessionId,
+      sessionTitle: title,
+      exportedAt: new Date().toISOString(),
+      messages: activeMessages,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_')}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleSendMessage = async (customPrompt?: string, domainOverride?: DomainMode) => {
@@ -122,13 +334,15 @@ export default function App() {
       domain,
     };
 
-    // Update session title dynamically with first prompt
+    const sessionTitle = promptToSend.slice(0, 36) + (promptToSend.length > 36 ? '...' : '');
+
+    // Update session title locally
     setSessions(prev =>
       prev.map(s => {
         if (s.id === activeSessionId && (s.title === 'Cuộc trò chuyện mới' || !s.title)) {
           return {
             ...s,
-            title: promptToSend.slice(0, 36) + (promptToSend.length > 36 ? '...' : ''),
+            title: sessionTitle,
             domain,
           };
         }
@@ -136,30 +350,63 @@ export default function App() {
       })
     );
 
-    // Append user message immediately
+    // Append user message locally
     const updatedMessages = [...activeMessages, newUserMsg];
     setMessagesBySession(prev => ({
       ...prev,
       [activeSessionId]: updatedMessages,
     }));
 
+    // If authenticated, persist to Firestore
+    if (user) {
+      try {
+        const sessionDocRef = doc(db, 'users', user.uid, 'sessions', activeSessionId);
+        await setDoc(
+          sessionDocRef,
+          {
+            id: activeSessionId,
+            userId: user.uid,
+            title:
+              activeMessages.length === 0
+                ? sessionTitle
+                : sessions.find(s => s.id === activeSessionId)?.title || sessionTitle,
+            domain,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+
+        const msgDocRef = doc(db, 'users', user.uid, 'sessions', activeSessionId, 'messages', userMsgId);
+        await setDoc(msgDocRef, {
+          ...newUserMsg,
+          sessionId: activeSessionId,
+          userId: user.uid,
+          timestampRaw: new Date().toISOString(),
+        });
+      } catch (err) {
+        handleFirestoreError(
+          err,
+          OperationType.WRITE,
+          `users/${user.uid}/sessions/${activeSessionId}/messages/${userMsgId}`
+        );
+      }
+    }
+
     setInputValue('');
     setIsProcessing(true);
 
     try {
-      // Call REAL server API with Tommo API Key header
+      // Call server API with webSearch ALWAYS active
       const response = await fetch('/api/tommo/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-tommo-api-key': tommoApiKey,
         },
         body: JSON.stringify({
           prompt: promptToSend,
           domain,
-          apiKey: tommoApiKey,
           model: selectedModel,
-          webSearch: isWebSearchActive,
+          webSearch: true, // Always active
           processorMode: selectedModel === 'tommo-ultra' ? 'ultra_turbo' : 'quantum_deep',
           history: activeMessages.map(m => ({ role: m.role, content: m.content })),
         }),
@@ -193,6 +440,35 @@ export default function App() {
           ...prev,
           [activeSessionId]: [...(prev[activeSessionId] || []), tommoMsg],
         }));
+
+        // If authenticated, persist response to Firestore
+        if (user) {
+          try {
+            const botMsgRef = doc(db, 'users', user.uid, 'sessions', activeSessionId, 'messages', tommoMsg.id);
+            await setDoc(botMsgRef, {
+              ...tommoMsg,
+              sessionId: activeSessionId,
+              userId: user.uid,
+              timestampRaw: new Date().toISOString(),
+            });
+
+            // Update user total fluff saved
+            const userDocRef = doc(db, 'users', user.uid);
+            await setDoc(
+              userDocRef,
+              {
+                totalFluffSaved: totalFluffSaved + (data.metrics?.fluffTokensSaved || 0),
+              },
+              { merge: true }
+            );
+          } catch (err) {
+            handleFirestoreError(
+              err,
+              OperationType.WRITE,
+              `users/${user.uid}/sessions/${activeSessionId}/messages/${tommoMsg.id}`
+            );
+          }
+        }
       } else {
         throw new Error(data?.error || 'Phản hồi không hợp lệ từ máy chủ AI.');
       }
@@ -205,13 +481,14 @@ export default function App() {
     }
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     const newId = 'session-' + Date.now();
     const newSession: ChatSession = {
       id: newId,
       title: 'Cuộc trò chuyện mới',
       timestamp: 'Vừa xong',
       domain: currentDomain,
+      pinned: false,
     };
 
     setSessions(prev => [newSession, ...prev]);
@@ -222,9 +499,26 @@ export default function App() {
     }));
     setInputValue('');
     setApiError(null);
+
+    if (user) {
+      try {
+        const sessionRef = doc(db, 'users', user.uid, 'sessions', newId);
+        await setDoc(sessionRef, {
+          id: newId,
+          userId: user.uid,
+          title: 'Cuộc trò chuyện mới',
+          domain: currentDomain,
+          pinned: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/sessions/${newId}`);
+      }
+    }
   };
 
-  const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSessions(prev => prev.filter(s => s.id !== sessionId));
     setMessagesBySession(prev => {
@@ -232,6 +526,14 @@ export default function App() {
       delete copy[sessionId];
       return copy;
     });
+
+    if (user) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'sessions', sessionId));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/sessions/${sessionId}`);
+      }
+    }
 
     if (activeSessionId === sessionId) {
       const remaining = sessions.filter(s => s.id !== sessionId);
@@ -259,26 +561,27 @@ export default function App() {
         }}
         onNewChat={handleNewChat}
         onDeleteSession={handleDeleteSession}
-        onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+        onTogglePinSession={handleTogglePinSession}
+        onRenameSession={handleRenameSession}
         onOpenSystemInstruction={() => setIsSystemInstructionOpen(true)}
-        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         totalFluffSaved={totalFluffSaved}
+        user={user}
+        onOpenAccountModal={() => setIsAccountModalOpen(true)}
       />
 
       {/* Main Chat Interface */}
       <div className="flex-1 flex flex-col h-full min-w-0 relative">
-        {/* Top Navigation Bar */}
+        {/* Top Navigation Bar with Tommo 1.0, Export and Real Google User Profile */}
         <TopNav
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
-          onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
           onOpenSystemInstruction={() => setIsSystemInstructionOpen(true)}
-          onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
-          activeApiKey={tommoApiKey}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
-          isWebSearchActive={isWebSearchActive}
-          onToggleWebSearch={() => setIsWebSearchActive(prev => !prev)}
+          user={user}
+          onOpenAccountModal={() => setIsAccountModalOpen(true)}
+          onExportMarkdown={handleExportMarkdown}
+          onExportJson={handleExportJson}
         />
 
         {/* Central Content Area */}
@@ -296,7 +599,7 @@ export default function App() {
           )}
 
           {isThreadEmpty ? (
-            /* Hero Empty State (Where should we start?) */
+            /* Hero Empty State */
             <Hero
               inputValue={inputValue}
               onInputChange={setInputValue}
@@ -308,10 +611,10 @@ export default function App() {
                 handleSendMessage(prompt, d);
               }}
               isProcessing={isProcessing}
-              isWebSearchActive={isWebSearchActive}
-              onToggleWebSearch={() => setIsWebSearchActive(prev => !prev)}
               processorMode={selectedModel === 'tommo-ultra' ? 'ultra_turbo' : 'quantum_deep'}
-              onToggleProcessorMode={() => setSelectedModel(m => m === 'tommo-ultra' ? 'tommo-quantum' : 'tommo-ultra')}
+              onToggleProcessorMode={() =>
+                setSelectedModel(m => (m === 'tommo-ultra' ? 'tommo-quantum' : 'tommo-ultra'))
+              }
             />
           ) : (
             /* Active Live Chat Thread */
@@ -326,9 +629,9 @@ export default function App() {
                     <span className="text-xs font-bold font-mono">✦</span>
                   </div>
                   <div className="flex flex-col gap-1 text-sm text-slate-300 font-sans">
-                    <span className="font-medium text-slate-200">Tommo 2.0 đang thực thi qua Quantum Super Engine...</span>
+                    <span className="font-medium text-slate-200">Tommo 1.0 đang xử lý qua Super Engine...</span>
                     <span className="text-xs text-cyan-400 font-mono">
-                      {isWebSearchActive ? '⚡ Đang truy vấn mạng đa chiều & mô phỏng ma trận logic 5 tầng' : '⚡ Đang chạy bộ xử lý siêu tốc & tối ưu mật độ token'}
+                      ⚡ Đang tự động đối chiếu ma trận tri thức đa chiều & tối ưu mật độ token
                     </span>
                   </div>
                 </div>
@@ -351,28 +654,19 @@ export default function App() {
                 onSelectDomain={setCurrentDomain}
                 disabled={isProcessing}
                 isProcessing={isProcessing}
-                placeholder="Hỏi Tommo..."
-                isWebSearchActive={isWebSearchActive}
-                onToggleWebSearch={() => setIsWebSearchActive(prev => !prev)}
+                placeholder="Hỏi Tommo 1.0..."
                 processorMode={selectedModel === 'tommo-ultra' ? 'ultra_turbo' : 'quantum_deep'}
-                onToggleProcessorMode={() => setSelectedModel(m => m === 'tommo-ultra' ? 'tommo-quantum' : 'tommo-ultra')}
+                onToggleProcessorMode={() =>
+                  setSelectedModel(m => (m === 'tommo-ultra' ? 'tommo-quantum' : 'tommo-ultra'))
+                }
               />
               <p className="text-center text-[11px] text-slate-500 mt-2 font-sans">
-                Tommo 2.0 Quantum AI • Bộ xử lý Siêu Tốc • Tư duy Ma trận Đa chiều • Tra cứu Mạng Thời gian thực • Zero-Fluff
+                Tommo 1.0 Super Engine • Tác giả Gia Bảo • Tra cứu Tri thức Tự động • Mật độ Token Tối đa • Zero-Fluff
               </p>
             </div>
           </div>
         )}
       </div>
-
-      {/* Security Guardrail Protocol Modal */}
-      <SecurityGuardrailModal
-        isOpen={isSecurityModalOpen}
-        onClose={() => setIsSecurityModalOpen(false)}
-        onRunTestPrompt={prompt => {
-          handleSendMessage(prompt, 'security');
-        }}
-      />
 
       {/* System Instruction Architecture Modal */}
       <SystemInstructionModal
@@ -380,12 +674,13 @@ export default function App() {
         onClose={() => setIsSystemInstructionOpen(false)}
       />
 
-      {/* Tommo API Key Manager Modal (tmm-xxxxxxxxxxxxxxxxxxxx) */}
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => setIsApiKeyModalOpen(false)}
-        apiKey={tommoApiKey}
-        onUpdateApiKey={handleUpdateApiKey}
+      {/* Real Google Account & Firestore Synchronization Modal */}
+      <AccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        user={user}
+        totalFluffSaved={totalFluffSaved}
+        recentMessages={messagesBySession[activeSessionId] || []}
       />
     </div>
   );
