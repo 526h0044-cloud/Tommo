@@ -13,6 +13,7 @@ interface HeroProps {
   isProcessing?: boolean;
   processorMode?: ProcessorEngineMode;
   onToggleProcessorMode?: () => void;
+  onOpenSkillsModal?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
@@ -25,6 +26,7 @@ export const Hero: React.FC<HeroProps> = ({
   isProcessing = false,
   processorMode = 'ultra_turbo',
   onToggleProcessorMode,
+  onOpenSkillsModal,
 }) => {
   const suggestionCards = [
     {
@@ -95,6 +97,39 @@ export const Hero: React.FC<HeroProps> = ({
           Chúng ta nên bắt đầu từ đâu?
         </h2>
       </div>
+
+      {/* 10 Super Skills Interactive Banner */}
+      {onOpenSkillsModal && (
+        <div className="mb-6">
+          <button
+            onClick={onOpenSkillsModal}
+            className="group flex flex-col sm:flex-row sm:items-center justify-between w-full p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-purple-950/30 to-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400/60 transition cursor-pointer shadow-lg text-left gap-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shrink-0">
+                <Sparkles className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm font-semibold text-white font-sans">
+                    Bộ Ma Trận 110 Siêu Kỹ Năng Toàn Năng (+50 Kỹ Năng Mới)
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono font-medium border border-cyan-500/30">
+                    110x Tier 5 Supreme
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-sans mt-0.5 line-clamp-1 sm:line-clamp-none">
+                  Lượng tử, eBPF XDP, WASM, HFT Disruptor, zk-SNARKs, Post-Quantum, Slide PowerPoint/Canva/Nanobanana 2, K8s Operator, WebGPU, FHE SEAL, NeRF 3D và 98 siêu kỹ năng tối thượng.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-400 shrink-0 group-hover:translate-x-1 transition-transform self-end sm:self-center">
+              <span>Khám phá 110 kỹ năng</span>
+              <span>→</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Suggestion Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-auto">

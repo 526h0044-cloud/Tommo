@@ -15,19 +15,10 @@ import {
   Layers,
   ArrowUpRight,
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from 'recharts';
+
 import { type FirebaseUser, loginWithGoogle, logoutUser } from '../firebase.ts';
 import type { TommoMessage } from '../types/tommo.ts';
+import { TokenEfficiencyChart } from './TokenEfficiencyChart.tsx';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -55,7 +46,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [chartView, setChartView] = useState<'cumulative' | 'perSession'>('cumulative');
+
 
   // Compute time-series data based on real messages & totalFluffSaved
   const chartData = useMemo<PerformanceDataPoint[]>(() => {
@@ -306,173 +297,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             </div>
           </div>
 
-          {/* Recharts Token Savings Visualization */}
-          <div className="p-4 rounded-xl bg-[#1a1b1e] border border-[#2b2d31] space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-400" />
-                <h4 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">
-                  Hiệu Suất Tiết Kiệm Token Theo Thời Gian
-                </h4>
-              </div>
-
-              {/* View switch */}
-              <div className="flex items-center bg-[#141517] p-0.5 rounded-lg border border-[#282a2d] text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setChartView('cumulative')}
-                  className={`px-2.5 py-1 rounded-md transition font-sans ${
-                    chartView === 'cumulative'
-                      ? 'bg-blue-600 text-white font-medium shadow-xs'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Tích lũy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChartView('perSession')}
-                  className={`px-2.5 py-1 rounded-md transition font-sans ${
-                    chartView === 'perSession'
-                      ? 'bg-blue-600 text-white font-medium shadow-xs'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Theo phiên
-                </button>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-              Trực quan hóa lượng token thừa (chào hỏi xã giao, lặp lại ngữ cảnh) đã được thuật toán Zero-Fluff tự động lọc bỏ, giúp tăng tốc độ phản hồi và tiết kiệm quota.
-            </p>
-
-            {/* Recharts Container */}
-            <div className="w-full h-52 min-h-[200px] pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                {chartView === 'cumulative' ? (
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="tokenSavingsGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.45} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="rawTokensGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="#26282b" strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      stroke="#64748b"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={{ stroke: '#2e3034' }}
-                    />
-                    <YAxis
-                      stroke="#64748b"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={{ stroke: '#2e3034' }}
-                      tickFormatter={val => `${val}t`}
-                    />
-                    <Tooltip
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as PerformanceDataPoint;
-                          return (
-                            <div className="rounded-xl border border-blue-500/30 bg-[#141517]/95 p-2.5 shadow-xl text-xs backdrop-blur-md">
-                              <div className="font-semibold text-white font-mono mb-1.5 border-b border-[#282a2d] pb-1">
-                                {label}
-                              </div>
-                              <div className="space-y-1 text-[11px] font-sans">
-                                <div className="flex items-center justify-between gap-4 text-emerald-400">
-                                  <span>Token đã tiết kiệm:</span>
-                                  <span className="font-mono font-bold">+{data.cumulativeSaved} t</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-4 text-slate-300">
-                                  <span>Token thực tế dùng:</span>
-                                  <span className="font-mono">{data.optimizedTokens} t</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-4 text-slate-400">
-                                  <span>Token nếu không lọc:</span>
-                                  <span className="font-mono line-through">{data.rawTokens} t</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-4 text-blue-400 pt-1 border-t border-[#26282b]">
-                                  <span>Tỷ lệ tinh gọn:</span>
-                                  <span className="font-mono font-bold">{data.savingsRate}%</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="cumulativeSaved"
-                      name="Lũy kế tiết kiệm"
-                      stroke="#3b82f6"
-                      strokeWidth={2.5}
-                      fillOpacity={1}
-                      fill="url(#tokenSavingsGrad)"
-                    />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid stroke="#26282b" strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      stroke="#64748b"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={{ stroke: '#2e3034' }}
-                    />
-                    <YAxis
-                      stroke="#64748b"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={{ stroke: '#2e3034' }}
-                      tickFormatter={val => `${val}t`}
-                    />
-                    <Tooltip
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as PerformanceDataPoint;
-                          return (
-                            <div className="rounded-xl border border-blue-500/30 bg-[#141517]/95 p-2.5 shadow-xl text-xs backdrop-blur-md">
-                              <div className="font-semibold text-white font-mono mb-1.5 border-b border-[#282a2d] pb-1">
-                                {label}
-                              </div>
-                              <div className="space-y-1 text-[11px] font-sans">
-                                <div className="flex items-center justify-between gap-4 text-emerald-400">
-                                  <span>Tiết kiệm phiên này:</span>
-                                  <span className="font-mono font-bold">+{data.savedTokens} t</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-4 text-blue-400">
-                                  <span>Tỷ lệ giảm thiểu:</span>
-                                  <span className="font-mono font-bold">{data.savingsRate}%</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar
-                      dataKey="savedTokens"
-                      name="Token tiết kiệm phiên"
-                      fill="#3b82f6"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
-            </div>
-          </div>
+          {/* Recharts Token Savings Visualization with TokenEfficiencyChart */}
+          <TokenEfficiencyChart
+            totalFluffSaved={totalFluffSaved}
+            recentMessages={recentMessages}
+          />
 
           {/* Infrastructure & Quota Specs */}
           <div className="p-3.5 rounded-xl bg-[#141517] border border-[#26282b] space-y-2 text-xs font-sans">

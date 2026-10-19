@@ -6,7 +6,9 @@ import { ChatMessage } from './components/ChatMessage.tsx';
 import { InputBar } from './components/InputBar.tsx';
 import { SystemInstructionModal } from './components/SystemInstructionModal.tsx';
 import { AccountModal } from './components/AccountModal.tsx';
+import { SkillsModal } from './components/SkillsModal.tsx';
 import { DomainMode, TommoMessage, ChatSession } from './types/tommo.ts';
+import { ResilientSystemPipeline } from './utils/resilientPipeline.ts';
 import {
   auth,
   db,
@@ -37,6 +39,7 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSystemInstructionOpen, setIsSystemInstructionOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Real Firebase User State (Live Google Auth)
@@ -84,6 +87,53 @@ export default function App() {
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // High-performance ResilientSystemPipeline for AI chat operations
+  const chatPipelineRef = useRef(
+    new ResilientSystemPipeline<
+      {
+        prompt: string;
+        domain: DomainMode;
+        model: TommoModelType;
+        webSearch: boolean;
+        processorMode: string;
+        history: Array<{ role: 'user' | 'tommo'; content: string }>;
+      },
+      any
+    >(
+      async (payload, signal) => {
+        const response = await fetch('/api/tommo/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Máy chủ AI phản hồi mã lỗi ${response.status}`);
+        }
+
+        return response.json();
+      },
+      {
+        timeoutMs: 15000,
+        maxRetries: 2,
+        backoffInitialMs: 150,
+        circuitThreshold: 4,
+        validatePayload: payload => {
+          if (!payload || typeof payload !== 'object') {
+            return { valid: false, reason: 'Yêu cầu không hợp lệ' };
+          }
+          if (!payload.prompt || typeof payload.prompt !== 'string' || !payload.prompt.trim()) {
+            return { valid: false, reason: 'Nội dung truy vấn không được rỗng' };
+          }
+          return true;
+        },
+      }
+    )
+  );
 
   // 1. Listen for Real Firebase Auth state changes
   useEffect(() => {
@@ -396,27 +446,15 @@ export default function App() {
     setIsProcessing(true);
 
     try {
-      // Call server API with webSearch ALWAYS active
-      const response = await fetch('/api/tommo/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: promptToSend,
-          domain,
-          model: selectedModel,
-          webSearch: true, // Always active
-          processorMode: selectedModel === 'tommo-ultra' ? 'ultra_turbo' : 'quantum_deep',
-          history: activeMessages.map(m => ({ role: m.role, content: m.content })),
-        }),
+      // Call server API with ResilientSystemPipeline (comprehensive error boundary & retry)
+      const data = await chatPipelineRef.current.process({
+        prompt: promptToSend,
+        domain,
+        model: selectedModel,
+        webSearch: true, // Always active
+        processorMode: selectedModel === 'tommo-ultra' ? 'ultra_turbo' : 'quantum_deep',
+        history: activeMessages.map(m => ({ role: m.role, content: m.content })),
       });
-
-      if (!response.ok) {
-        throw new Error(`Máy chủ AI phản hồi mã lỗi ${response.status}`);
-      }
-
-      const data = await response.json();
       if (data && data.success) {
         const tommoMsg: TommoMessage = {
           id: 'tommo-' + Date.now(),
@@ -564,6 +602,7 @@ export default function App() {
         onTogglePinSession={handleTogglePinSession}
         onRenameSession={handleRenameSession}
         onOpenSystemInstruction={() => setIsSystemInstructionOpen(true)}
+        onOpenSkillsModal={() => setIsSkillsModalOpen(true)}
         totalFluffSaved={totalFluffSaved}
         user={user}
         onOpenAccountModal={() => setIsAccountModalOpen(true)}
@@ -576,6 +615,7 @@ export default function App() {
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
           onOpenSystemInstruction={() => setIsSystemInstructionOpen(true)}
+          onOpenSkillsModal={() => setIsSkillsModalOpen(true)}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
           user={user}
@@ -606,6 +646,7 @@ export default function App() {
               onSubmit={() => handleSendMessage()}
               domain={currentDomain}
               onSelectDomain={setCurrentDomain}
+              onOpenSkillsModal={() => setIsSkillsModalOpen(true)}
               onSelectSuggestion={(prompt, d) => {
                 setCurrentDomain(d);
                 handleSendMessage(prompt, d);
@@ -681,6 +722,16 @@ export default function App() {
         user={user}
         totalFluffSaved={totalFluffSaved}
         recentMessages={messagesBySession[activeSessionId] || []}
+      />
+
+      {/* 10 Super Skills Modal */}
+      <SkillsModal
+        isOpen={isSkillsModalOpen}
+        onClose={() => setIsSkillsModalOpen(false)}
+        onSelectSkillPrompt={(prompt, d) => {
+          setCurrentDomain(d);
+          handleSendMessage(prompt, d);
+        }}
       />
     </div>
   );

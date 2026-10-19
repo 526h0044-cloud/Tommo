@@ -3,6 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var _currentFetch = window.fetch;
+          var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          if (!desc || !desc.set) {
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: true,
+              get: function() {
+                return _currentFetch;
+              },
+              set: function(fn) {
+                _currentFetch = fn;
+              }
+            });
+          }
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            var protoDesc = Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
+            if (!protoDesc || !protoDesc.set) {
+              try {
+                Object.defineProperty(Window.prototype, 'fetch', {
+                  configurable: true,
+                  enumerable: true,
+                  get: function() {
+                    return _currentFetch;
+                  },
+                  set: function(fn) {
+                    _currentFetch = fn;
+                  }
+                });
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
     <title>Tommo 1.0 — Autonomous Super AI Engine</title>
     <meta name="description" content="Tommo 1.0 is an Autonomous Super AI Engine & Universal Systems Architect engineered for high-density reasoning, production-grade software engineering, and cognitive architecture." />
     <meta property="og:title" content="Tommo 1.0 — Autonomous Super AI Engine" />

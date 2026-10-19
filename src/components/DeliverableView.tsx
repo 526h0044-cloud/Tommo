@@ -18,6 +18,7 @@ import {
   Code2,
 } from 'lucide-react';
 import { TommoMessage } from '../types/tommo.ts';
+import { PresentationViewer } from './PresentationViewer.tsx';
 
 interface DeliverableViewProps {
   message: TommoMessage;
@@ -75,6 +76,11 @@ export const DeliverableView: React.FC<DeliverableViewProps> = ({ message }) => 
             </span>
           </div>
         </div>
+      )}
+
+      {/* Interactive Presentation Frame (PowerPoint, Canva, Nanobanana 2) */}
+      {deliverable?.presentationDeck && (
+        <PresentationViewer deck={deliverable.presentationDeck} />
       )}
 
       {/* Autonomous Self-Reflection & Auto-Repair Panel (Tự vấn bản thân & Tự sửa lỗi) */}

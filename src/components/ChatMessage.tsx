@@ -316,6 +316,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                     <span className="text-xs text-slate-200 font-medium line-clamp-2 group-hover:text-cyan-300">
                       {src.title}
                     </span>
+                    {src.snippet && (
+                      <p className="text-[10.5px] text-slate-400 line-clamp-2 mt-1 leading-snug">
+                        {src.snippet}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between mt-2 pt-1 border-t border-white/5 text-[10px] text-slate-400">
                       <span className="font-mono text-cyan-400 truncate max-w-[120px]">{src.domain}</span>
                       <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />

@@ -8,6 +8,7 @@ import {
   Download,
   FileText,
   FileJson,
+  Sparkles,
 } from 'lucide-react';
 import type { FirebaseUser } from '../firebase.ts';
 
@@ -17,6 +18,7 @@ interface TopNavProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   onOpenSystemInstruction: () => void;
+  onOpenSkillsModal?: () => void;
   selectedModel: TommoModelType;
   onSelectModel: (m: TommoModelType) => void;
   user: FirebaseUser | null;
@@ -29,6 +31,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   isSidebarOpen,
   onToggleSidebar,
   onOpenSystemInstruction,
+  onOpenSkillsModal,
   selectedModel,
   onSelectModel,
   user,
@@ -189,6 +192,21 @@ export const TopNav: React.FC<TopNavProps> = ({
             </div>
           )}
         </div>
+
+        {/* 110 Super Skills Button */}
+        {onOpenSkillsModal && (
+          <button
+            onClick={onOpenSkillsModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-cyan-600/20 hover:from-blue-600/35 hover:to-cyan-600/35 border border-cyan-500/40 text-cyan-300 hover:text-white transition cursor-pointer shadow-xs"
+            title="Xem & Thực thi Bộ Ma Trận 110 Siêu Kỹ Năng Toàn Năng (+50 Kỹ Năng Mới) của Tommo 1.0"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span className="font-sans font-medium text-[11px]">110 Kỹ Năng</span>
+            <span className="hidden md:inline text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+              +50 Mới
+            </span>
+          </button>
+        )}
 
         {/* Tommo Standalone Engine Badge */}
         <div

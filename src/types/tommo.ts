@@ -6,6 +6,8 @@ export type DomainMode =
   | 'academic'
   | 'deep_search'
   | 'multifile'
+  | 'data'
+  | 'intelligence'
   | 'general';
 
 export type ProcessorEngineMode = 'ultra_turbo' | 'quantum_deep';
@@ -16,6 +18,7 @@ export interface WebGroundingSource {
   domain: string;
   isLongTail?: boolean;
   category?: string;
+  snippet?: string;
 }
 
 export interface WebGroundingData {
@@ -55,6 +58,35 @@ export interface PolyglotSnippet {
   code: string;
   testCode?: string;
   notes: string;
+}
+
+export interface SlideItem {
+  id: string;
+  slideNumber: number;
+  title: string;
+  subtitle?: string;
+  category?: string;
+  layout: 'title' | 'split' | 'grid_3' | 'kpi_metrics' | 'timeline' | 'quote' | 'summary';
+  bullets: string[];
+  metrics?: Array<{ value: string; label: string; trend?: string }>;
+  speakerNotes: string;
+  highlightText?: string;
+  badge?: string;
+  accentColor?: 'cyan' | 'purple' | 'emerald' | 'amber' | 'rose' | 'blue';
+}
+
+export interface PresentationDeck {
+  deckTitle: string;
+  topic: string;
+  subtitle: string;
+  author: string;
+  dateStr?: string;
+  totalSlides: number;
+  defaultTool: 'powerpoint' | 'canva' | 'nanobanana2';
+  theme: 'cyber_dark' | 'corporate_clean' | 'canva_vibrant' | 'nanobanana_neon' | 'academic_slate';
+  slides: SlideItem[];
+  canvaTemplateUrl?: string;
+  keyTakeaways: string[];
 }
 
 export interface AcademicSlide {
@@ -123,7 +155,7 @@ export interface TommoMessage {
   webGrounding?: WebGroundingData;
   processorMode?: ProcessorEngineMode;
   deliverable?: {
-    type: 'code' | 'architecture' | 'analysis' | 'academic' | 'deep_search' | 'multifile_summary' | 'refusal';
+    type: 'code' | 'architecture' | 'analysis' | 'academic' | 'deep_search' | 'multifile_summary' | 'refusal' | 'presentation';
     language?: string;
     codeSnippet?: string;
     explanation?: string;
@@ -133,6 +165,7 @@ export interface TommoMessage {
     multiFileAnalysis?: MultiFileAnalysis;
     academicStructure?: AcademicStructure;
     polyglotSnippets?: PolyglotSnippet[];
+    presentationDeck?: PresentationDeck;
   };
 }
 

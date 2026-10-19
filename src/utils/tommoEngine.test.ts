@@ -178,3 +178,50 @@ test('ResilientSystemPipeline: generates leak-free TypeScript pipeline with circ
   assert.ok(deliverable.deliverable.codeSnippet?.includes('AbortController'));
   assert.ok(deliverable.deliverable.codeSnippet?.includes('clearTimeout(timerId)'));
 });
+
+test('10 Super Skills: activates and synthesizes all 10 autonomous capabilities', () => {
+  const prompt = 'Nâng cấp cho AI 10 kỹ năng liên quan';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'architecture');
+  assert.ok(deliverable.content.includes('10 Kỹ Năng Siêu Việt'));
+  assert.ok(deliverable.content.includes('Kiến Trúc Hệ Thống Phân Tán'));
+  assert.ok(deliverable.content.includes('Polyglot Engineering'));
+  assert.ok(deliverable.content.includes('Zero-Allocation'));
+  assert.ok(deliverable.content.includes('Defense-in-Depth Cybersecurity'));
+  assert.ok(deliverable.content.includes('Deep Web Intelligence'));
+  assert.ok(deliverable.content.includes('Database Engineering & Sharding'));
+  assert.ok(deliverable.content.includes('Multi-File Codebase Comprehension'));
+  assert.ok(deliverable.content.includes('Academic Research & Thesis'));
+  assert.ok(deliverable.content.includes('Autonomous Self-Reflection'));
+  assert.ok(deliverable.content.includes('Agentic Orchestration'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('TommoSuperSkillsOrchestrator'));
+});
+
+test('110 Super Skills: activates matrix of 110 autonomous skills and +50 new supreme skills', () => {
+  const prompt = 'Thêm 50 kỹ năng khác và mạnh nâng cấp toàn bộ kỹ năng để nó mạnh nhất';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'architecture');
+  assert.ok(deliverable.content.includes('110 Siêu Kỹ Năng Toàn Năng'));
+  assert.ok(deliverable.content.includes('Cụm 1: Kiến Trúc Phân Tán, Đám Mây & Điện Toán Biên'));
+  assert.ok(deliverable.content.includes('Cụm 2: Kỹ Thuật Lập Trình, Biên Dịch & Hiệu Năng Microsecond'));
+  assert.ok(deliverable.content.includes('Cụm 3: An Ninh Tầng Sâu, Mật Mã Hậu Lượng Tử, ZK & Phần Cứng'));
+  assert.ok(deliverable.content.includes('Cụm 4: Trí Tuệ Nhân Tạo Tự Chủ, Multi-Agent & Thị Giác Đa Phương Thức'));
+  assert.ok(deliverable.content.includes('Cụm 5: Dữ Liệu Lớn, Streaming Real-Time & Cơ Sở Dữ Liệu Sharded'));
+  assert.ok(deliverable.content.includes('Cụm 6: Nghiên Cứu Khoa Học, Học Thuật, Slide Đa Nền Tảng & Toán Tài Chính'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('Tommo110SuperSkillsOrchestrator'));
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('tommo110SkillsEngine'));
+});
+
+test('Slide Presentation: creates presentation deck with PowerPoint, Canva and Nanobanana 2 support', () => {
+  const prompt = 'kêu làm slide thuyết trình về trí tuệ nhân tạo';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'presentation');
+  assert.ok(deliverable.deliverable.presentationDeck);
+  assert.ok(deliverable.deliverable.presentationDeck.slides.length >= 5);
+  assert.ok(deliverable.deliverable.presentationDeck.deckTitle);
+  assert.ok(deliverable.content.includes('PowerPoint'));
+  assert.ok(deliverable.content.includes('Canva'));
+  assert.ok(deliverable.content.includes('Nanobanana 2'));
+});
+
+
