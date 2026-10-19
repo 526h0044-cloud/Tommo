@@ -47,100 +47,119 @@ export async function performLiveWebSearch(prompt: string): Promise<LiveSearchRe
   const primaryQuery = queries[0] || prompt;
   let wikiSummary = '';
 
-  // 1. Live Wikipedia Search & Abstract Retrieval
-  try {
-    const wikiSearchUrl = `https://vi.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
-      primaryQuery
-    )}&format=json&origin=*`;
+  // Run Wikipedia and DuckDuckGo concurrently to prevent latency or blocking
+  const [wikiResult, ddgResult] = await Promise.allSettled([
+    // 1. Live Wikipedia Search & Abstract Retrieval
+    (async () => {
+      try {
+        const wikiSearchUrl = `https://vi.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
+          primaryQuery
+        )}&format=json&origin=*`;
 
-    const wikiRes = await fetch(wikiSearchUrl, {
-      headers: { 'User-Agent': 'TommoSuperEngine/1.0 (Bách Khoa Toàn Thư)' },
-      signal: AbortSignal.timeout(3500),
-    });
-
-    if (wikiRes.ok) {
-      const data = await wikiRes.json();
-      const items = data.query?.search?.slice(0, 3) || [];
-
-      for (const item of items) {
-        const cleanSnippet = cleanHtml(item.snippet);
-        sources.push({
-          title: `${item.title} — Bách khoa toàn thư Wikipedia`,
-          url: `https://vi.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
-          domain: 'vi.wikipedia.org',
-          snippet: cleanSnippet,
-          category: 'Bách Khoa Tri Thức Mở',
-          isLongTail: false,
+        const wikiRes = await fetch(wikiSearchUrl, {
+          headers: { 'User-Agent': 'TommoSuperEngine/1.0 (Bách Khoa Toàn Thư)' },
+          signal: AbortSignal.timeout(2500),
         });
 
-        if (!wikiSummary && cleanSnippet) {
-          wikiSummary = cleanSnippet;
+        if (wikiRes.ok) {
+          const data = await wikiRes.json();
+          const items = data.query?.search?.slice(0, 3) || [];
+          return items.map((item: any) => ({
+            title: `${item.title} — Bách khoa toàn thư Wikipedia`,
+            url: `https://vi.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/\s+/g, '_'))}`,
+            domain: 'vi.wikipedia.org',
+            snippet: cleanHtml(item.snippet),
+            category: 'Bách Khoa Tri Thức Mở',
+            isLongTail: false,
+          }));
         }
+      } catch {
+        // Wikipedia non-blocking
       }
-    }
-  } catch {
-    // Wikipedia non-blocking fallback
-  }
+      return [];
+    })(),
 
-  // 2. DuckDuckGo Real-Time Web Scraping
-  try {
-    const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(primaryQuery)}`;
-    const ddgRes = await fetch(ddgUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-      signal: AbortSignal.timeout(4000),
-    });
+    // 2. DuckDuckGo Real-Time Web Scraping
+    (async () => {
+      try {
+        const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(primaryQuery)}`;
+        const ddgRes = await fetch(ddgUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml',
+          },
+          signal: AbortSignal.timeout(2500),
+        });
 
-    if (ddgRes.ok) {
-      const html = await ddgRes.text();
-      // Regex matching result links and snippets
-      const matches = [
-        ...html.matchAll(
-          /<a class="result__url"[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>.*?<a class="result__snippet[^>]*>(.*?)<\/a>/gs
-        ),
-      ];
+        if (ddgRes.ok) {
+          const html = await ddgRes.text();
+          const matches = [
+            ...html.matchAll(
+              /<a class="result__url"[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>.*?<a class="result__snippet[^>]*>(.*?)<\/a>/gs
+            ),
+          ];
 
-      for (const match of matches.slice(0, 4)) {
-        let rawUrl = match[1];
-        let actualUrl = rawUrl;
-        if (rawUrl.includes('uddg=')) {
-          const matchUddg = rawUrl.match(/uddg=([^&]+)/);
-          if (matchUddg) {
+          const ddgSources: WebGroundingSource[] = [];
+          for (const match of matches.slice(0, 4)) {
+            let rawUrl = match[1];
+            let actualUrl = rawUrl;
+            if (rawUrl.includes('uddg=')) {
+              const matchUddg = rawUrl.match(/uddg=([^&]+)/);
+              if (matchUddg) {
+                try {
+                  actualUrl = decodeURIComponent(matchUddg[1]);
+                } catch {
+                  actualUrl = matchUddg[1];
+                }
+              }
+            }
+
+            let domain = 'duckduckgo.com';
             try {
-              actualUrl = decodeURIComponent(matchUddg[1]);
+              domain = new URL(actualUrl).hostname;
             } catch {
-              actualUrl = matchUddg[1];
+              domain = 'internet-source.com';
+            }
+
+            const title = cleanHtml(match[2]) || domain;
+            const snippet = cleanHtml(match[3]);
+
+            if (actualUrl.startsWith('http')) {
+              ddgSources.push({
+                title: title.length > 90 ? title.slice(0, 90) + '...' : title,
+                url: actualUrl,
+                domain,
+                snippet: snippet.length > 220 ? snippet.slice(0, 220) + '...' : snippet,
+                category: 'Web Thời Gian Thực',
+                isLongTail: true,
+              });
             }
           }
+          return ddgSources;
         }
+      } catch {
+        // DDG non-blocking
+      }
+      return [];
+    })(),
+  ]);
 
-        let domain = 'duckduckgo.com';
-        try {
-          domain = new URL(actualUrl).hostname;
-        } catch {
-          domain = 'internet-source.com';
-        }
-
-        const title = cleanHtml(match[2]) || domain;
-        const snippet = cleanHtml(match[3]);
-
-        if (actualUrl.startsWith('http') && !sources.some(s => s.url === actualUrl)) {
-          sources.push({
-            title: title.length > 90 ? title.slice(0, 90) + '...' : title,
-            url: actualUrl,
-            domain,
-            snippet: snippet.length > 220 ? snippet.slice(0, 220) + '...' : snippet,
-            category: 'Web Thời Gian Thực',
-            isLongTail: true,
-          });
-        }
+  if (wikiResult.status === 'fulfilled' && Array.isArray(wikiResult.value)) {
+    for (const item of wikiResult.value) {
+      sources.push(item);
+      if (!wikiSummary && item.snippet) {
+        wikiSummary = item.snippet;
       }
     }
-  } catch {
-    // DDG non-blocking fallback
+  }
+
+  if (ddgResult.status === 'fulfilled' && Array.isArray(ddgResult.value)) {
+    for (const item of ddgResult.value) {
+      if (!sources.some(s => s.url === item.url)) {
+        sources.push(item);
+      }
+    }
   }
 
   // Fallback to verified scholarly/encyclopedic sources if live fetch was restricted

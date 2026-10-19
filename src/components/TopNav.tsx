@@ -9,8 +9,11 @@ import {
   FileText,
   FileJson,
   Sparkles,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import type { FirebaseUser } from '../firebase.ts';
+import { TOMMO_ALL_SKILLS } from '../utils/tommoSkills.ts';
 
 export type TommoModelType = 'tommo-ultra' | 'tommo-quantum';
 
@@ -25,6 +28,8 @@ interface TopNavProps {
   onOpenAccountModal: () => void;
   onExportMarkdown?: () => void;
   onExportJson?: () => void;
+  showThinking?: boolean;
+  onToggleThinking?: () => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -38,6 +43,8 @@ export const TopNav: React.FC<TopNavProps> = ({
   onOpenAccountModal,
   onExportMarkdown,
   onExportJson,
+  showThinking = false,
+  onToggleThinking,
 }) => {
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
@@ -193,18 +200,49 @@ export const TopNav: React.FC<TopNavProps> = ({
           )}
         </div>
 
-        {/* 110 Super Skills Button */}
+        {/* Dynamic Super Skills Button */}
         {onOpenSkillsModal && (
           <button
             onClick={onOpenSkillsModal}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-cyan-600/20 hover:from-blue-600/35 hover:to-cyan-600/35 border border-cyan-500/40 text-cyan-300 hover:text-white transition cursor-pointer shadow-xs"
-            title="Xem & Thực thi Bộ Ma Trận 110 Siêu Kỹ Năng Toàn Năng (+50 Kỹ Năng Mới) của Tommo 1.0"
+            title={`Xem & Thực thi Bộ Ma Trận ${TOMMO_ALL_SKILLS.length} Siêu Kỹ Năng Toàn Năng của Tommo 1.0`}
           >
             <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            <span className="font-sans font-medium text-[11px]">110 Kỹ Năng</span>
+            <span className="font-sans font-medium text-[11px]">{TOMMO_ALL_SKILLS.length} Kỹ Năng</span>
             <span className="hidden md:inline text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">
-              +50 Mới
+              Tier 5
             </span>
+          </button>
+        )}
+
+        {/* Toggle AI Thinking Trace: Hidden by default (Trả lời câu chính thống) */}
+        {onToggleThinking && (
+          <button
+            onClick={onToggleThinking}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition cursor-pointer font-mono text-[11px] shadow-xs ${
+              showThinking
+                ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300'
+                : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400 hover:bg-emerald-950/60'
+            }`}
+            title={
+              showThinking
+                ? 'Đang hiện chu trình tư duy AI (Bấm để ẩn suy nghĩ và chỉ nhận câu trả lời chính thống)'
+                : 'Đang ẩn suy nghĩ AI: Phản hồi chuẩn mực câu trả lời chính thống (Bấm để xem chu trình tư duy)'
+            }
+          >
+            {showThinking ? (
+              <>
+                <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Suy Nghĩ:</span>
+                <span className="text-cyan-300 font-semibold">Hiện</span>
+              </>
+            ) : (
+              <>
+                <EyeOff className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Câu Trả Lời:</span>
+                <span className="text-emerald-400 font-semibold">Chính Thống</span>
+              </>
+            )}
           </button>
         )}
 

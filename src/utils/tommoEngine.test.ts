@@ -224,4 +224,42 @@ test('Slide Presentation: creates presentation deck with PowerPoint, Canva and N
   assert.ok(deliverable.content.includes('Nanobanana 2'));
 });
 
+test('Codebase Audit & Skills Upgrade: audits all 38 files and upgrades 110 skills to supreme tier', () => {
+  const prompt = 'Check toàn bộ file và nâng cấp toàn bị kỹ nâng để nó mạnh nhất';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'architecture');
+  assert.ok(deliverable.content.includes('Báo Cáo Kiểm Tra Toàn Bộ 38 Tệp Dự Án'));
+  assert.ok(deliverable.content.includes('110 Siêu Kỹ Năng Toàn Năng'));
+  assert.ok(deliverable.deliverable.multiFileAnalysis);
+  assert.equal(deliverable.deliverable.multiFileAnalysis.totalFiles, 38);
+  assert.ok(deliverable.deliverable.multiFileAnalysis.fileMatrix.length >= 15);
+  assert.ok(deliverable.deliverable.selfCorrection);
+  assert.equal(deliverable.deliverable.selfCorrection.verificationPassed, true);
+  assert.ok(deliverable.deliverable.codeSnippet?.includes('Tommo110SuperSkillsOrchestrator'));
+});
+
+test('Skill 111: activates TDTU essay & report standard with 10 sections and Tommo proprietary features', () => {
+  const prompt = 'Tạo ra 1 kỹ năng giúp làm TRÌNH BÀY BÀI TIỂU LUẬN / BÁO CÁO NHÓM CHUẨN XỊN ... Thêm cái của "riêng" nữa';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'academic');
+  assert.ok(deliverable.content.includes('Kỹ Năng #111'));
+  assert.ok(deliverable.content.includes('BỐ CỤC CHUẨN 10 TẦNG'));
+  assert.ok(deliverable.content.includes('Gia Bảo L8035 Lý Hoàng'));
+  assert.ok(deliverable.content.includes('Times New Roman'));
+  assert.ok(deliverable.deliverable.academicStructure);
+  assert.equal(deliverable.deliverable.academicStructure.sections.length, 10);
+  assert.ok(deliverable.deliverable.academicStructure.sections[0].heading.includes('Trang Bìa Chính'));
+  assert.ok(deliverable.deliverable.academicStructure.slideDecks && deliverable.deliverable.academicStructure.slideDecks.length >= 6);
+});
+
+test('Hide Thinking & Official Answer Mode: responds with official answer and anti-interruption upgrades', () => {
+  const prompt = 'khi trả lời. Ẩn suy nghĩ của AI. Cho AI trả lời câu chính thống thôi. Với lại AI suy nghĩ nữa chừng hoặc trl nữa chừng lại. Hãy nâng cấp';
+  const deliverable = generateDeterministicDeliverable(prompt);
+  assert.equal(deliverable.deliverable.type, 'analysis');
+  assert.ok(deliverable.content.includes('ẨN SUY NGHĨ CỦA AI'));
+  assert.ok(deliverable.content.includes('CHỈ TRẢ LỜI CÂU CHÍNH THỐNG'));
+  assert.ok(deliverable.content.includes('KHÔNG BAO GIỜ BỊ DỪNG / SUY NGHĨ NỬA CHỪNG'));
+  assert.ok(deliverable.content.includes('60.000ms'));
+});
+
 

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { DomainMode, ChatSession } from '../types/tommo.ts';
 import type { FirebaseUser } from '../firebase.ts';
+import { TOMMO_ALL_SKILLS } from '../utils/tommoSkills.ts';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -179,14 +180,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={`flex items-center gap-3 w-full rounded-lg px-2.5 py-2 text-xs text-slate-300 hover:bg-[#282a2d] hover:text-white transition cursor-pointer group ${
                 !isOpen && 'justify-center px-0'
               }`}
-              title="Khám phá Bộ Ma Trận 110 Siêu Kỹ Năng Toàn Năng (+50 Kỹ Năng Mới Nâng Cấp) của Tommo 1.0"
+              title={`Khám phá Bộ Ma Trận ${TOMMO_ALL_SKILLS.length} Siêu Kỹ Năng Toàn Năng của Tommo 1.0`}
             >
               <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 group-hover:animate-pulse" />
               {isOpen && (
                 <div className="flex items-center justify-between flex-1 truncate">
-                  <span className="truncate font-medium text-cyan-200">110 Siêu Kỹ Năng</span>
+                  <span className="truncate font-medium text-cyan-200">{TOMMO_ALL_SKILLS.length} Siêu Kỹ Năng</span>
                   <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">
-                    +50 Mới
+                    Tier 5
                   </span>
                 </div>
               )}

@@ -323,7 +323,7 @@ export const DeliverableView: React.FC<DeliverableViewProps> = ({ message }) => 
                 {academicStructure.sections.map((sec, idx) => (
                   <div key={idx} className="p-3 rounded-lg bg-slate-900/60 border border-slate-800/80">
                     <h5 className="font-mono font-bold text-slate-200 mb-1">{sec.heading}</h5>
-                    <p className="text-slate-300 text-xs">{sec.content}</p>
+                    <p className="text-slate-300 text-xs whitespace-pre-line">{sec.content}</p>
                   </div>
                 ))}
               </div>

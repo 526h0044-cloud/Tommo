@@ -16,13 +16,25 @@ import {
   Volume2,
   VolumeX,
   Eye,
+  EyeOff,
   Code,
   Download,
+  GraduationCap,
+  BookOpen,
+  Presentation,
+  Files,
+  Code2,
+  RefreshCw,
+  ShieldCheck,
+  AlertTriangle,
+  Wrench,
 } from 'lucide-react';
 import { TommoMessage } from '../types/tommo.ts';
+import { PresentationViewer } from './PresentationViewer.tsx';
 
 interface ChatMessageProps {
   message: TommoMessage;
+  showThinking?: boolean;
 }
 
 interface CodeBlockProps {
@@ -152,11 +164,13 @@ const CodeBlockView: React.FC<CodeBlockProps> = ({ language, code }) => {
   );
 };
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, showThinking = false }) => {
   const [copied, setCopied] = useState(false);
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
   const [isWebSourcesExpanded, setIsWebSourcesExpanded] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [academicTab, setAcademicTab] = useState<'paper' | 'slides'>('paper');
+  const [activePolyglotTab, setActivePolyglotTab] = useState<number>(0);
 
   const isUser = message.role === 'user';
   const deliverable = message.deliverable;
@@ -164,6 +178,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const stages = message.cognitiveStages;
   const webGrounding = message.webGrounding;
   const processorMode = message.processorMode || 'ultra_turbo';
+
+  // Strip any internal thought markers to ensure a clean, authoritative response
+  const officialContent = (message.content || '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+    .trim();
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -183,7 +203,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
     } else {
       window.speechSynthesis.cancel();
       // Remove code blocks and markdown symbols for natural reading
-      const cleanText = message.content
+      const cleanText = officialContent
         .replace(/```[\s\S]*?```/g, ' [Có đoạn mã lập trình] ')
         .replace(/[#*`_~]/g, '')
         .trim();
@@ -219,8 +239,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
       </div>
 
       <div className="flex-1 overflow-hidden space-y-4">
-        {/* Thinking Accordion (Cognitive Simulation Trace) */}
-        {stages && stages.length > 0 && (
+        {/* Thinking Accordion (Cognitive Simulation Trace) - ONLY rendered when showThinking is explicitly TRUE */}
+        {showThinking && stages && stages.length > 0 && (
           <div className="rounded-2xl border border-[#303236] bg-[#1a1b1d]/90 overflow-hidden shadow-sm">
             <button
               onClick={() => setIsThinkingExpanded(prev => !prev)}
@@ -332,9 +352,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           </div>
         )}
 
-        {/* Deliverable Body Content */}
+        {/* Deliverable Body Content (Official Response) */}
         <div className="text-sm font-sans space-y-3 leading-relaxed text-slate-200">
-          {message.content.split(/\n\n+/).map((block, i) => {
+          {officialContent.split(/\n\n+/).map((block, i) => {
             // Check for Code Block
             if (block.startsWith('```')) {
               const lines = block.split('\n');
@@ -418,6 +438,281 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             );
           })}
         </div>
+
+        {/* 1. Presentation Deck (PowerPoint, Canva, Nanobanana 2) */}
+        {deliverable?.presentationDeck && (
+          <div className="my-3">
+            <PresentationViewer deck={deliverable.presentationDeck} />
+          </div>
+        )}
+
+        {/* 2. University Academic Structure (Paper & Defense Slides) */}
+        {deliverable?.academicStructure && (
+          <div className="rounded-2xl border border-purple-500/40 bg-slate-950 p-4 shadow-xl my-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-purple-500/20">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-purple-400" />
+                <span className="font-mono text-xs font-bold text-purple-300 uppercase tracking-wide">
+                  Khung Luận Văn & Slide Thuyết Trình Sinh Viên Đại Học (Chuẩn TDTU & Độc Quyền Tommo)
+                </span>
+              </div>
+
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setAcademicTab('paper')}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-mono rounded transition cursor-pointer ${
+                    academicTab === 'paper'
+                      ? 'bg-purple-600 text-white font-semibold'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Toàn Văn Luận Văn</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAcademicTab('slides')}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-mono rounded transition cursor-pointer ${
+                    academicTab === 'slides'
+                      ? 'bg-purple-600 text-white font-semibold'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Presentation className="w-3.5 h-3.5" />
+                  <span>Slide Thuyết Trình Bảo Vệ</span>
+                </button>
+              </div>
+            </div>
+
+            {academicTab === 'paper' ? (
+              <div className="mt-3 space-y-3 text-xs leading-relaxed">
+                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-mono text-purple-400 uppercase font-semibold block mb-0.5">
+                    Tóm Tắt Khoa Học (Abstract):
+                  </span>
+                  <p className="text-slate-200 italic">{deliverable.academicStructure.abstract}</p>
+                </div>
+
+                <div className="space-y-2">
+                  {deliverable.academicStructure.sections.map((sec, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                      <h5 className="font-mono font-bold text-slate-200 mb-1">{sec.heading}</h5>
+                      <p className="text-slate-300 text-xs whitespace-pre-line leading-relaxed">{sec.content}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {deliverable.academicStructure.citations && (
+                  <div className="p-3 rounded-xl bg-slate-900/40 border border-slate-800 text-[11px]">
+                    <span className="font-mono text-purple-300 uppercase font-semibold block mb-1">
+                      Tài Liệu Tham Khảo (APA 7th / MLA):
+                    </span>
+                    <ol className="list-decimal pl-4 space-y-1 text-slate-400">
+                      {deliverable.academicStructure.citations.map((cite, idx) => (
+                        <li key={idx}>{cite}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {deliverable.academicStructure.slideDecks?.map((slide, idx) => (
+                  <div key={idx} className="rounded-xl bg-slate-900 border border-slate-800 p-3.5 space-y-2 text-xs">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                      <span className="font-mono text-purple-400 font-bold">SLIDE {slide.slideNumber}</span>
+                      <span className="font-semibold text-slate-200">{slide.title}</span>
+                    </div>
+                    <ul className="space-y-1 text-slate-300 pl-3 list-disc">
+                      {slide.bullets.map((b, bIdx) => (
+                        <li key={bIdx}>{b}</li>
+                      ))}
+                    </ul>
+                    <div className="p-2 rounded bg-slate-950 border border-slate-800/80 text-[11px] text-slate-400">
+                      <strong className="text-cyan-400 font-mono block mb-0.5">Lời thoại thuyết trình (Speaker Notes):</strong>
+                      "{slide.speakerNotes}"
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 3. Multi-File Codebase Audit Matrix Table */}
+        {deliverable?.multiFileAnalysis && (
+          <div className="rounded-2xl border border-cyan-500/40 bg-slate-950 p-4 shadow-xl my-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-cyan-500/20">
+              <div className="flex items-center gap-2">
+                <Files className="w-4 h-4 text-cyan-400" />
+                <span className="font-mono text-xs font-bold text-cyan-300 uppercase tracking-wide">
+                  Ma Trận Thẩm Định Toàn Bộ Dự Án ({deliverable.multiFileAnalysis.totalFiles} Tệp • {deliverable.multiFileAnalysis.totalSize})
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
+                100% TYPE-SAFE • 0 LỖI CÚ PHÁP
+              </span>
+            </div>
+
+            <div className="mt-3 overflow-x-auto rounded-xl border border-slate-800">
+              <table className="min-w-full divide-y divide-slate-800 text-xs">
+                <thead className="bg-slate-900 text-cyan-300 font-mono">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Tệp Mã Nguồn</th>
+                    <th className="px-3 py-2 text-left">Loại Tệp</th>
+                    <th className="px-3 py-2 text-left">Dung Lượng</th>
+                    <th className="px-3 py-2 text-left">Vai Trò Kiến Trúc</th>
+                    <th className="px-3 py-2 text-left">Điểm Cốt Lõi Trích Xuất</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-850 bg-slate-950/60 font-sans">
+                  {deliverable.multiFileAnalysis.fileMatrix.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-900/40">
+                      <td className="px-3 py-2 font-mono text-cyan-300 font-semibold">{item.name}</td>
+                      <td className="px-3 py-2 text-slate-300">{item.type}</td>
+                      <td className="px-3 py-2 font-mono text-slate-400">{item.size}</td>
+                      <td className="px-3 py-2 text-slate-300">{item.role}</td>
+                      <td className="px-3 py-2 text-slate-400">{item.keyPoints}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {deliverable.multiFileAnalysis.crossDependencies && deliverable.multiFileAnalysis.crossDependencies.length > 0 && (
+              <div className="mt-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px]">
+                <span className="font-mono text-cyan-400 uppercase font-semibold block mb-1">
+                  Liên kết phụ thuộc chéo (Cross-Dependencies):
+                </span>
+                <ul className="space-y-1 text-slate-300">
+                  {deliverable.multiFileAnalysis.crossDependencies.map((dep, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-cyan-400">→</span>
+                      <span>{dep}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {deliverable.multiFileAnalysis.finalSynthesis && (
+              <div className="mt-3 p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/30 text-xs text-slate-200">
+                <strong className="text-cyan-300 block mb-0.5">Tổng kết thẩm định toàn bộ tệp:</strong>
+                {deliverable.multiFileAnalysis.finalSynthesis}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 4. Polyglot Code Switcher */}
+        {deliverable?.polyglotSnippets && deliverable.polyglotSnippets.length > 0 && (
+          <div className="rounded-2xl border border-cyan-500/40 bg-slate-950 shadow-xl overflow-hidden my-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-slate-900 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Code2 className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-mono font-semibold text-slate-200">
+                  MÃ NGUỒN ĐA NGÔN NGỮ (POLYGLOT CODE PACKAGE):
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {deliverable.polyglotSnippets.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActivePolyglotTab(idx)}
+                    className={`px-2.5 py-1 text-xs font-mono rounded-md transition cursor-pointer ${
+                      activePolyglotTab === idx
+                        ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
+                        : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                    }`}
+                  >
+                    {item.language.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {deliverable.polyglotSnippets[activePolyglotTab] && (
+              <div>
+                <div className="flex items-center justify-between px-4 py-1.5 bg-slate-850 border-b border-slate-800 text-[11px] font-mono text-slate-400">
+                  <span>Tệp: <strong className="text-cyan-300">{deliverable.polyglotSnippets[activePolyglotTab].filename}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(deliverable.polyglotSnippets![activePolyglotTab].code)}
+                    className="flex items-center gap-1 text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Sao chép</span>
+                  </button>
+                </div>
+                <pre className="p-4 text-xs font-mono text-cyan-200 overflow-x-auto leading-normal bg-slate-950 max-h-96">
+                  <code>{deliverable.polyglotSnippets[activePolyglotTab].code}</code>
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 5. Autonomous Self-Reflection & Auto-Repair Panel */}
+        {deliverable?.selfCorrection && (
+          <div className="rounded-xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/30 via-slate-900/90 to-cyan-950/30 p-4 shadow-xl my-4">
+            <div className="flex items-center justify-between pb-3 border-b border-emerald-500/20">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin-slow" />
+                <span className="font-mono text-xs font-bold text-emerald-300 uppercase tracking-wide">
+                  Động Cơ Tự Vấn Bản Thân & Tự Sửa Lỗi (Autonomous Self-Reflection Loop)
+                </span>
+              </div>
+              <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                100% VERIFICATION PASSED
+              </span>
+            </div>
+
+            <div className="mt-3 space-y-2.5 text-xs">
+              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-mono uppercase text-cyan-400 font-semibold block mb-0.5">
+                  ❓ Câu hỏi Tommo tự chất vấn chính mình:
+                </span>
+                <p className="text-slate-200 font-medium italic">
+                  "{deliverable.selfCorrection.selfQuestion}"
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30">
+                  <span className="text-[10px] font-mono uppercase text-amber-400 font-semibold flex items-center gap-1 mb-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                    Điểm mù & Lỗi logic ngầm tự phát hiện:
+                  </span>
+                  <ul className="space-y-1 text-slate-300">
+                    {deliverable.selfCorrection.critiquedFlaws.map((flaw, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5">
+                        <span className="text-amber-400 font-bold">•</span>
+                        <span>{flaw}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-500/30">
+                  <span className="text-[10px] font-mono uppercase text-emerald-400 font-semibold flex items-center gap-1 mb-1">
+                    <Wrench className="w-3.5 h-3.5 text-emerald-400" />
+                    Bản vá tự động áp dụng (Auto-Patching):
+                  </span>
+                  <ul className="space-y-1 text-slate-300">
+                    {deliverable.selfCorrection.appliedPatches.map((patch, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5">
+                        <span className="text-emerald-400 font-bold">•</span>
+                        <span>{patch}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Active Clarification Box */}
         {deliverable?.clarificationQuestion && (

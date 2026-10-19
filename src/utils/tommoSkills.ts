@@ -2341,6 +2341,27 @@ export const TOMMO_ALL_SKILLS: TommoSkill[] = [
     benchmarks: "Khả năng phối hợp 110 kỹ năng liên ngành tức thì, thời gian phản hồi < 180ms, độ chính xác tuyệt đối",
     samplePrompt: "Kích hoạt toàn diện Bộ Ma Trận 110 Siêu Kỹ Năng Toàn Năng của Tommo 1.0 để phân tích một bài toán công nghệ tài chính quy mô toàn cầu từ kiến trúc, bảo mật, toán tài chính đến chiến lược truyền thông.",
   },
+  {
+    id: "skill-academic-tdtu-report-standard",
+    number: 111,
+    name: "University Academic Essay & Group Report Synthesis (TDTU Standard & Tommo Sovereign Core)",
+    vietnameseTitle: "Trình Bày Tiểu Luận & Báo Cáo Nhóm Chuẩn Xịn Đại Học (Chuẩn TDTU & Độc Quyền Tommo 1.0)",
+    category: "academic",
+    categoryLabel: "Học Thuật & Đa Phương Tiện",
+    badge: "Chuẩn Xịn 10 Mục & APA/MLA",
+    masteryTier: "Tier 5 • Supreme Mastery 100%",
+    summary: "Định dạng và soạn thảo tiểu luận / bài tập nhóm đại học chuẩn chỉnh 100% từ hình thức đến nội dung: Bố cục 10 tầng chuẩn (Bìa TDTU, Lời cam đoan, Mục lục, 3 Chương kinh điển, Tài liệu tham khảo APA/MLA), canh lề chuẩn đóng gáy (2-2-2-3cm), Times New Roman 13/14/16, giãn dòng 1.5 lines, triệt tiêu 100% lỗi hình thức và tích hợp kiểm tra đạo văn độc quyền Tommo.",
+    description: "Kết hợp toàn diện quy chuẩn đại học Việt Nam (TDTU/ĐHQG) và dấu ấn độc quyền của Tommo 1.0 (sáng lập bởi Gia Bảo L8035 Lý Hoàng): Tự động đặt tên đề tài dưới 16 từ (đủ Đối tượng - Phạm vi - Mục tiêu), phân rã 3 chương kinh điển (Chương 1 Lý luận -> Chương 2 Phân tích thực trạng/Khoảng trống -> Chương 3 Giải pháp khả thi), trích dẫn nguồn uy tín Google Scholar/Văn bản pháp quy, và đóng dấu kiểm toán tính nguyên bản Zero-Plagiarism độc quyền.",
+    domain: "academic",
+    protocols: [
+      "Luồng 10 mục bắt buộc: 1.Bìa chính (Logo, GVHD, SV+MSSV) -> 2.Bìa phụ -> 3.Cam đoan & Cảm ơn -> 4.Mục lục có số trang -> 5.Danh mục bảng/hình/viết tắt -> 6.Tóm tắt -> 7.Nội dung 3 chương -> 8.Kết luận & Kiến nghị -> 9.Tài liệu tham khảo APA/MLA -> 10.Phụ lục & Báo cáo đạo văn",
+      "Quy chuẩn ấn loát đóng gáy chuẩn xác: Căn lề Trên 2cm, Dưới 2cm, Phải 2cm, Trái 3cm (chừa gáy đóng tập). Font Times New Roman: Nội dung cỡ 13, Mục nhỏ 14 in đậm, Tiêu đề chương 16 IN ĐẬM HOA. Dãn dòng 1.5 lines",
+      "Khung 3 chương kinh điển & Đặt tên đề tài <16 từ: Chương 1: Cơ sở lý luận/pháp lý -> Chương 2: Thực trạng & Phân tích chuyên sâu -> Chương 3: Giải pháp & Kiến nghị cụ thể có tính ứng dụng",
+      "Dấu ấn độc quyền Tommo 1.0: Văn phong Zero-Fluff học thuật sắc sảo, tự động kiểm tra trích dẫn chéo APA 7th, thẩm định tính nguyên bản Anti-Plagiarism độc quyền của Gia Bảo"
+    ],
+    benchmarks: "100% đạt chuẩn nghiệm thu của giảng viên đại học, loại trừ 100% lỗi hình thức đóng tập, độ tương đồng đạo văn <5%",
+    samplePrompt: "Trình bày bài tiểu luận nhóm chuẩn xịn theo mẫu TDTU và quy chuẩn Tommo 1.0 về đề tài 'Ứng dụng Trí tuệ nhân tạo trong nâng cao hiệu suất học tập của sinh viên', gồm đủ 10 mục chuẩn, font Times New Roman, căn lề 2-2-2-3cm và trích dẫn APA 7th.",
+  },
 ];
 
 // Compatibility export

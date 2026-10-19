@@ -120,14 +120,14 @@ export const SkillsModal: React.FC<SkillsModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-semibold text-white font-sans">
-                  Bộ Ma Trận 110 Siêu Kỹ Năng Toàn Năng
+                  Bộ Ma Trận {TOMMO_ALL_SKILLS.length} Siêu Kỹ Năng Toàn Năng
                 </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 font-mono font-medium border border-emerald-500/30">
-                  +50 Kỹ Năng Siêu Cấp Mới (Tier 5 Supreme)
+                  Tier 5 Supreme Mastery 100%
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-sans">
-                Tích hợp 110 khối năng lực kỹ thuật, mật mã lượng tử, kiến trúc phân tán, AI tự chủ, khoa học và giải thuật tối thượng
+                Tích hợp {TOMMO_ALL_SKILLS.length} khối năng lực kỹ thuật, mật mã lượng tử, kiến trúc phân tán, AI tự chủ, tiểu luận học thuật chuẩn xịn và giải thuật tối thượng
               </p>
             </div>
           </div>
